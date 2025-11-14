@@ -22,6 +22,8 @@ public class ProductDetailForm : Form
     private TextBox _txtRemark = null!;
     private Button _btnSave = null!;
     private Button _btnCancel = null!;
+    private bool _isEdit = false;
+    private long _editId = 0;
 
     public ProductDetailForm()
     {
@@ -202,23 +204,51 @@ public class ProductDetailForm : Form
             _          => "ACTIVE"
         };
 
+        var id = _isEdit ? _editId : 0;
+
         Product = new Product
         {
-            ProductCode     = _txtCode.Text.Trim(),
-            ProductName     = _txtName.Text.Trim(),
-            PlanName        = string.IsNullOrWhiteSpace(_txtPlan.Text) ? null : _txtPlan.Text.Trim(),
+            ProductId     = id,
+            ProductCode   = _txtCode.Text.Trim(),
+            ProductName   = _txtName.Text.Trim(),
+            PlanName      = string.IsNullOrWhiteSpace(_txtPlan.Text) ? null : _txtPlan.Text.Trim(),
             YearlyAvailable = _chkYearly.Checked,
-            MinMonth        = minMonth,
-            MaxMonth        = maxMonth,
-            MonthlyFeeKrw   = monthKrw,
-            WholesalePrice  = wholesale,
-            RetailPrice     = retail,
-            PurchasePrice   = purchase,
-            Status          = status,
-            Remark          = string.IsNullOrWhiteSpace(_txtRemark.Text) ? null : _txtRemark.Text.Trim()
+            MinMonth      = minMonth,
+            MaxMonth      = maxMonth,
+            MonthlyFeeKrw = monthKrw,
+            WholesalePrice= wholesale,
+            RetailPrice   = retail,
+            PurchasePrice = purchase,
+            Status        = status,
+            Remark        = string.IsNullOrWhiteSpace(_txtRemark.Text) ? null : _txtRemark.Text.Trim()
         };
 
         DialogResult = DialogResult.OK;
         Close();
+    }
+    public ProductDetailForm(Product product) : this()
+    {
+        Text    = "상품 수정";
+        _isEdit = true;
+        _editId = product.ProductId;
+
+        _txtCode.Text      = product.ProductCode;
+        _txtName.Text      = product.ProductName;
+        _txtPlan.Text      = product.PlanName ?? "";
+        _chkYearly.Checked = product.YearlyAvailable;
+        _txtMinMonth.Text  = product.MinMonth.ToString();
+        _txtMaxMonth.Text  = product.MaxMonth.ToString();
+        _txtMonthKrw.Text  = product.MonthlyFeeKrw.ToString();
+        _txtWholesale.Text = product.WholesalePrice.ToString();
+        _txtRetail.Text    = product.RetailPrice.ToString();
+        _txtPurchase.Text  = product.PurchasePrice.ToString();
+        _txtRemark.Text    = product.Remark ?? "";
+
+        _cboStatus.SelectedItem = product.Status switch
+        {
+            "ACTIVE"   => "판매중",
+            "INACTIVE" => "판매중지",
+            _          => "판매중"
+        };
     }
 }

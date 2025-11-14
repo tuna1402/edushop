@@ -18,6 +18,7 @@ public class MainForm : Form
     private Button _btnSearch = null!;
     private DataGridView _grid = null!;
     private Button _btnNew = null!;
+    private Button _btnEdit = null!;
     private Button _btnToggle = null!;
     private Button _btnLogs = null!;
     private Button _btnClose = null!;
@@ -147,7 +148,7 @@ public class MainForm : Form
 
         _grid.CellDoubleClick += (_, _) =>
         {
-            MessageBox.Show("지금은 더블클릭 수정은 없고,\n[신규]/[판매중/중지]/[로그] 버튼만 동작합니다.", "안내");
+            EditProduct();
         };
 
         // 하단 버튼들
@@ -161,10 +162,20 @@ public class MainForm : Form
         };
         _btnNew.Click += (_, _) => NewProduct();
 
+        _btnEdit = new Button
+        {
+            Text = "수정",
+            Left = _btnNew.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 80,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnEdit.Click += (_, _) => EditProduct();
+
         _btnToggle = new Button
         {
             Text = "판매중/중지",
-            Left = _btnNew.Right + 10,
+            Left = _btnEdit.Right + 10,
             Top = ClientSize.Height - 45,
             Width = 100,
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
@@ -198,6 +209,7 @@ public class MainForm : Form
         Controls.Add(_btnSearch);
         Controls.Add(_grid);
         Controls.Add(_btnNew);
+        Controls.Add(_btnEdit);
         Controls.Add(_btnToggle);
         Controls.Add(_btnLogs);
         Controls.Add(_btnClose);
@@ -293,5 +305,30 @@ public class MainForm : Form
 
         using var dlg = new ProductLogForm(_service, selected);
         dlg.ShowDialog(this);
+    }
+
+    private void EditProduct()
+    {
+        var selected = GetSelected();
+        if (selected == null)
+        {
+            MessageBox.Show("수정할 상품을 선택하세요.");
+            return;
+        }
+
+        using var dlg = new ProductDetailForm(selected);
+        if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Product != null)
+        {
+            try
+            {
+                _service.Update(dlg.Product, _currentUser);
+                LoadProducts();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"수정 중 오류: {ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 }

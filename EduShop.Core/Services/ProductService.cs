@@ -56,6 +56,26 @@ public class ProductService
         });
     }
 
+    public void Update(Product product, UserContext user)
+    {
+        var existing = _productRepo.GetById(product.ProductId);
+        if (existing == null)
+            throw new InvalidOperationException($"상품(ID={product.ProductId})을(를) 찾을 수 없습니다.");
+
+        _productRepo.Update(product, user.UserName);
+
+        _logRepo.Insert(new AuditLogEntry
+        {
+            UserId      = user.UserId,
+            UserName    = user.UserName,
+            ActionType  = "PRODUCT_UPDATE",
+            TableName   = "Product",
+            TargetId    = product.ProductId,
+            TargetCode  = product.ProductCode,
+            Description = $"상품 수정 - [{product.ProductCode}] {product.ProductName}"
+        });
+    }
+
     public List<AuditLogEntry> GetLogsForProduct(long productId)
     {
         return _logRepo.GetForProduct(productId);

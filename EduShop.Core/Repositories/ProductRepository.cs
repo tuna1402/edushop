@@ -153,4 +153,48 @@ public class ProductRepository
             Remark          = reader.IsDBNull(13) ? null : reader.GetString(13)
         };
     }
+        public void Update(Product p, string userName)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+
+        cmd.CommandText = @"
+            UPDATE Product
+            SET
+                product_code     = $code,
+                product_name     = $name,
+                plan_name        = $plan,
+                monthly_fee_usd  = $usd,
+                monthly_fee_krw  = $krw,
+                wholesale_price  = $wholesale,
+                retail_price     = $retail,
+                purchase_price   = $purchase,
+                yearly_available = $yearly,
+                min_month        = $minMonth,
+                max_month        = $maxMonth,
+                status           = $status,
+                remark           = $remark,
+                updated_at       = datetime('now'),
+                updated_by       = $user
+            WHERE product_id      = $id;
+            ";
+
+        cmd.Parameters.AddWithValue("$code",      p.ProductCode);
+        cmd.Parameters.AddWithValue("$name",      p.ProductName);
+        cmd.Parameters.AddWithValue("$plan",      (object?)p.PlanName ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$usd",       (object?)p.MonthlyFeeUsd ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$krw",       p.MonthlyFeeKrw);
+        cmd.Parameters.AddWithValue("$wholesale", p.WholesalePrice);
+        cmd.Parameters.AddWithValue("$retail",    p.RetailPrice);
+        cmd.Parameters.AddWithValue("$purchase",  p.PurchasePrice);
+        cmd.Parameters.AddWithValue("$yearly",    p.YearlyAvailable ? "Y" : "N");
+        cmd.Parameters.AddWithValue("$minMonth",  p.MinMonth);
+        cmd.Parameters.AddWithValue("$maxMonth",  p.MaxMonth);
+        cmd.Parameters.AddWithValue("$status",    p.Status);
+        cmd.Parameters.AddWithValue("$remark",    (object?)p.Remark ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$user",      userName);
+        cmd.Parameters.AddWithValue("$id",        p.ProductId);
+
+        cmd.ExecuteNonQuery();
+    }
 }
