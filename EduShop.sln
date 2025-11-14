@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EduShop.Core", "EduShop.Core\EduShop.Core.csproj", "{AE2C63D7-7CE4-44C7-9411-57E178072A54}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EduShop.Cli", "EduShop.Cli\EduShop.Cli.csproj", "{240CD65B-4400-4C6E-8A21-FDCB0E055E97}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EduShop.WinForms", "EduShop.WinForms\EduShop.WinForms.csproj", "{1AF11F5D-7EAF-46A6-BB0A-674DD0D24DA6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AE2C63D7-7CE4-44C7-9411-57E178072A54}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE2C63D7-7CE4-44C7-9411-57E178072A54}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE2C63D7-7CE4-44C7-9411-57E178072A54}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE2C63D7-7CE4-44C7-9411-57E178072A54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{240CD65B-4400-4C6E-8A21-FDCB0E055E97}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{240CD65B-4400-4C6E-8A21-FDCB0E055E97}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{240CD65B-4400-4C6E-8A21-FDCB0E055E97}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{240CD65B-4400-4C6E-8A21-FDCB0E055E97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1AF11F5D-7EAF-46A6-BB0A-674DD0D24DA6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1AF11F5D-7EAF-46A6-BB0A-674DD0D24DA6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1AF11F5D-7EAF-46A6-BB0A-674DD0D24DA6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1AF11F5D-7EAF-46A6-BB0A-674DD0D24DA6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
