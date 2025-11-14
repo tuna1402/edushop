@@ -153,6 +153,42 @@ public class ProductRepository
             Remark          = reader.IsDBNull(13) ? null : reader.GetString(13)
         };
     }
+    public Product? GetByCode(string productCode)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT product_id, product_code, product_name,
+                plan_name, monthly_fee_usd, monthly_fee_krw,
+                wholesale_price, retail_price, purchase_price,
+                yearly_available, min_month, max_month, status, remark
+            FROM Product
+            WHERE product_code = $code;
+        ";
+        cmd.Parameters.AddWithValue("$code", productCode);
+
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read())
+            return null;
+
+        return new Product
+        {
+            ProductId       = reader.GetInt64(0),
+            ProductCode     = reader.GetString(1),
+            ProductName     = reader.GetString(2),
+            PlanName        = reader.IsDBNull(3) ? null : reader.GetString(3),
+            MonthlyFeeUsd   = reader.IsDBNull(4) ? null : reader.GetDouble(4),
+            MonthlyFeeKrw   = reader.GetInt64(5),
+            WholesalePrice  = reader.GetInt64(6),
+            RetailPrice     = reader.GetInt64(7),
+            PurchasePrice   = reader.GetInt64(8),
+            YearlyAvailable = reader.GetString(9) == "Y",
+            MinMonth        = reader.GetInt32(10),
+            MaxMonth        = reader.GetInt32(11),
+            Status          = reader.GetString(12),
+            Remark          = reader.IsDBNull(13) ? null : reader.GetString(13)
+        };
+    }
         public void Update(Product p, string userName)
     {
         using var conn = Open();

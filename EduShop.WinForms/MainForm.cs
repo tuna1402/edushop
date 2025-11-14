@@ -5,6 +5,8 @@ using System.Windows.Forms;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
 using EduShop.Core.Services;
+using System.IO;
+using System.Text;
 
 namespace EduShop.WinForms;
 
@@ -21,6 +23,8 @@ public class MainForm : Form
     private Button _btnEdit = null!;
     private Button _btnToggle = null!;
     private Button _btnLogs = null!;
+    private Button _btnExport = null!;
+    private Button _btnImport = null!;
     private Button _btnClose = null!;
 
     private List<Product> _currentList = new();
@@ -37,7 +41,43 @@ public class MainForm : Form
         InitializeControls();
         LoadProducts();
     }
+    private static string[] ParseCsvLine(string line)
+    {
+        var result = new List<string>();
+        var sb = new StringBuilder();
+        bool inQuotes = false;
 
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (c == '\"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '\"')
+                {
+                    // "" -> " (escape)
+                    sb.Append('\"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(sb.ToString());
+                sb.Clear();
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        result.Add(sb.ToString());
+        return result.ToArray();
+    }
     private void InitializeControls()
     {
         // 상단 필터
@@ -48,6 +88,7 @@ public class MainForm : Form
             Top = 15,
             AutoSize = true
         };
+
         _txtNameFilter = new TextBox
         {
             Left = lblName.Right + 5,
@@ -62,6 +103,7 @@ public class MainForm : Form
             Top = 15,
             AutoSize = true
         };
+
         _cboStatus = new ComboBox
         {
             Left = lblStatus.Right + 5,
@@ -69,7 +111,9 @@ public class MainForm : Form
             Width = 120,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
+
         _cboStatus.Items.AddRange(new[] { "전체", "판매중", "판매중지" });
+        
         _cboStatus.SelectedIndex = 0;
 
         _btnSearch = new Button
@@ -79,6 +123,7 @@ public class MainForm : Form
             Top = 9,
             Width = 80
         };
+
         _btnSearch.Click += (_, _) => LoadProducts();
 
         // 그리드
@@ -96,7 +141,6 @@ public class MainForm : Form
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             AutoGenerateColumns = false
         };
-
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "ID",
@@ -145,11 +189,23 @@ public class MainForm : Form
             DataPropertyName = "Status",
             Width = 80
         });
-
         _grid.CellDoubleClick += (_, _) =>
         {
             EditProduct();
         };
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "상태",
+            DataPropertyName = "Status",
+            Width = 80
+        });
+
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "마진",
+            DataPropertyName = "Profit",
+            Width = 80
+        });
 
         // 하단 버튼들
         _btnNew = new Button
@@ -192,6 +248,26 @@ public class MainForm : Form
         };
         _btnLogs.Click += (_, _) => ShowLogs();
 
+        _btnExport = new Button
+        {
+            Text = "엑셀 내보내기",
+            Left = _btnLogs.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 110,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnExport.Click += (_, _) => ExportToCsv();
+
+        _btnImport = new Button
+        {
+            Text = "엑셀 업로드",
+            Left = _btnExport.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 110,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnImport.Click += (_, _) => ImportFromCsv();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -202,17 +278,19 @@ public class MainForm : Form
         };
         _btnClose.Click += (_, _) => Close();
 
-        Controls.Add(lblName);
-        Controls.Add(_txtNameFilter);
-        Controls.Add(lblStatus);
-        Controls.Add(_cboStatus);
-        Controls.Add(_btnSearch);
-        Controls.Add(_grid);
-        Controls.Add(_btnNew);
-        Controls.Add(_btnEdit);
-        Controls.Add(_btnToggle);
-        Controls.Add(_btnLogs);
-        Controls.Add(_btnClose);
+            Controls.Add(lblName);
+            Controls.Add(_txtNameFilter);
+            Controls.Add(lblStatus);
+            Controls.Add(_cboStatus);
+            Controls.Add(_btnSearch);
+            Controls.Add(_grid);
+            Controls.Add(_btnNew);
+            Controls.Add(_btnEdit);
+            Controls.Add(_btnToggle);
+            Controls.Add(_btnLogs);
+            Controls.Add(_btnExport);
+            Controls.Add(_btnImport);
+            Controls.Add(_btnClose);
     }
 
     private void LoadProducts()
@@ -329,6 +407,266 @@ public class MainForm : Form
                 MessageBox.Show($"수정 중 오류: {ex.Message}", "오류",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+    }
+
+    private void ExportToCsv()
+    {
+        if (_currentList == null || _currentList.Count == 0)
+        {
+            MessageBox.Show("내보낼 상품이 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var sfd = new SaveFileDialog
+        {
+            Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
+            FileName = $"products_{DateTime.Now:yyyyMMddHHmm}.csv"
+        };
+
+        if (sfd.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        try
+        {
+            using var writer = new StreamWriter(sfd.FileName, false, Encoding.UTF8);
+
+            // 헤더
+            writer.WriteLine("ProductId,ProductCode,ProductName,PlanName,MonthlyFeeUsd,MonthlyFeeKrw,WholesalePrice,RetailPrice,PurchasePrice,Profit,YearlyAvailable,MinMonth,MaxMonth,Status,Remark");
+
+            string Escape(string? s)
+            {
+                if (string.IsNullOrEmpty(s)) return "";
+                return "\"" + s.Replace("\"", "\"\"") + "\"";
+            }
+
+            foreach (var p in _currentList)
+            {
+                var line = string.Join(",", new[]
+                {
+                    p.ProductId.ToString(),
+                    Escape(p.ProductCode),
+                    Escape(p.ProductName),
+                    Escape(p.PlanName),
+                    p.MonthlyFeeUsd?.ToString() ?? "",
+                    p.MonthlyFeeKrw.ToString(),
+                    p.WholesalePrice.ToString(),
+                    p.RetailPrice.ToString(),
+                    p.PurchasePrice.ToString(),
+                    p.Profit.ToString(),
+                    p.YearlyAvailable ? "Y" : "N",
+                    p.MinMonth.ToString(),
+                    p.MaxMonth.ToString(),
+                    Escape(p.Status),
+                    Escape(p.Remark)
+                });
+
+                writer.WriteLine(line);
+            }
+
+            MessageBox.Show("CSV 내보내기가 완료되었습니다.", "완료",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"내보내기 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+    private void ImportFromCsv()
+    {
+        using var ofd = new OpenFileDialog
+        {
+            Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
+            Title = "상품 CSV 파일 선택"
+        };
+
+        if (ofd.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        try
+        {
+            string[] lines;
+            // 엑셀이 파일을 열어둔 상태여도 읽을 수 있도록 FileShare.ReadWrite 사용
+            using (var fs = new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                // 1) BOM 검사
+                byte[] bom = new byte[3];
+                int read = fs.Read(bom, 0, 3);
+
+                bool isUtf8Bom = read == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF;
+
+                // 2) 다시 처음으로 되돌리기
+                fs.Position = 0;
+
+                // 3) 인코딩 선택
+                var encoding = isUtf8Bom
+                    ? new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)
+                    : Encoding.Default; // 한국 윈도우에서는 CP949
+
+                using var reader = new StreamReader(fs, encoding, detectEncodingFromByteOrderMarks: true);
+
+                var list = new List<string>();
+                while (!reader.EndOfStream)
+                {
+                    list.Add(reader.ReadLine() ?? string.Empty);
+                }
+                lines = list.ToArray();
+            }
+            if (lines.Length <= 1)
+            {
+                MessageBox.Show("유효한 데이터가 없습니다.", "안내",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var headerCols = ParseCsvLine(lines[0]);
+            var indexByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < headerCols.Length; i++)
+            {
+                indexByName[headerCols[i]] = i;
+            }
+
+            bool Has(string name) => indexByName.ContainsKey(name);
+            int Idx(string name) => indexByName[name];
+
+            List<Product> importList = new();
+
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var cols = ParseCsvLine(line);
+                if (cols.Length == 0) continue;
+
+                string Get(string name)
+                {
+                    if (!Has(name)) return "";
+                    int idx = Idx(name);
+                    if (idx < 0 || idx >= cols.Length) return "";
+                    return cols[idx];
+                }
+
+                long productId = 0;
+                if (Has("ProductId"))
+                {
+                    long.TryParse(Get("ProductId"), out productId);
+                }
+
+                var code = Get("ProductCode");
+                if (string.IsNullOrWhiteSpace(code))
+                {
+                    // 코드 없는 행은 스킵
+                    continue;
+                }
+
+                var name = Get("ProductName");
+                var plan = Get("PlanName");
+
+                double? monthlyUsd = null;
+                if (Has("MonthlyFeeUsd"))
+                {
+                    if (double.TryParse(Get("MonthlyFeeUsd"), out var usd))
+                        monthlyUsd = usd;
+                }
+
+                long monthlyKrw = 0;
+                if (Has("MonthlyFeeKrw"))
+                {
+                    long.TryParse(Get("MonthlyFeeKrw"), out monthlyKrw);
+                }
+
+                long wholesale = 0;
+                long retail    = 0;
+                long purchase  = 0;
+
+                if (Has("WholesalePrice"))
+                    long.TryParse(Get("WholesalePrice"), out wholesale);
+
+                if (Has("RetailPrice"))
+                    long.TryParse(Get("RetailPrice"), out retail);
+
+                if (Has("PurchasePrice"))
+                    long.TryParse(Get("PurchasePrice"), out purchase);
+
+                bool yearlyAvailable = false;
+                if (Has("YearlyAvailable"))
+                {
+                    var y = Get("YearlyAvailable");
+                    yearlyAvailable = y.Equals("Y", StringComparison.OrdinalIgnoreCase)
+                                    || y.Equals("true", StringComparison.OrdinalIgnoreCase);
+                }
+
+                int minMonth = 1;
+                int maxMonth = 12;
+                if (Has("MinMonth"))
+                    int.TryParse(Get("MinMonth"), out minMonth);
+                if (Has("MaxMonth"))
+                    int.TryParse(Get("MaxMonth"), out maxMonth);
+
+                var status = Get("Status");
+                if (string.IsNullOrWhiteSpace(status))
+                    status = "ACTIVE";
+
+                var remark = Get("Remark");
+
+                var p = new Product
+                {
+                    ProductId       = productId,
+                    ProductCode     = code.Trim(),
+                    ProductName     = name.Trim(),
+                    PlanName        = string.IsNullOrWhiteSpace(plan) ? null : plan.Trim(),
+                    MonthlyFeeUsd   = monthlyUsd,
+                    MonthlyFeeKrw   = monthlyKrw,
+                    WholesalePrice  = wholesale,
+                    RetailPrice     = retail,
+                    PurchasePrice   = purchase,
+                    YearlyAvailable = yearlyAvailable,
+                    MinMonth        = minMonth,
+                    MaxMonth        = maxMonth,
+                    Status          = status.Trim(),
+                    Remark          = string.IsNullOrWhiteSpace(remark) ? null : remark.Trim()
+                };
+
+                importList.Add(p);
+            }
+
+            if (importList.Count == 0)
+            {
+                MessageBox.Show("가져올 상품이 없습니다.", "안내",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"{importList.Count}개의 행을 일괄 적용합니다.\n" +
+                "상품코드/ID를 기준으로 신규/수정을 자동 판별합니다.\n계속하시겠습니까?",
+                "확인",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            var (inserted, updated, skipped) = _service.BulkUpsert(importList, _currentUser);
+
+            LoadProducts();
+
+            MessageBox.Show(
+                $"일괄 적용 완료.\n\n" +
+                $"신규 등록: {inserted}건\n" +
+                $"수정: {updated}건\n" +
+                $"스킵: {skipped}건",
+                "완료",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"엑셀 업로드 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

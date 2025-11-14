@@ -16,4 +16,6 @@ public class Product
     public int MaxMonth { get; set; }
     public string Status { get; set; } = "ACTIVE"; // ACTIVE / INACTIVE
     public string? Remark { get; set; }
+    public long Profit => RetailPrice - PurchasePrice;
+    public double? ProfitRate => PurchasePrice > 0 ? (double)(RetailPrice - PurchasePrice) / PurchasePrice : null;
 }
