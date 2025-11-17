@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
 using EduShop.Core.Services;
-using System.IO;
-using System.Text;
 
 namespace EduShop.WinForms;
 
@@ -25,8 +25,8 @@ public class MainForm : Form
     private Button _btnLogs = null!;
     private Button _btnExport = null!;
     private Button _btnImport = null!;
+    private Button _btnQuote = null!;
     private Button _btnClose = null!;
-
 
     private List<Product> _currentList = new();
 
@@ -42,43 +42,7 @@ public class MainForm : Form
         InitializeControls();
         LoadProducts();
     }
-    private static string[] ParseCsvLine(string line)
-    {
-        var result = new List<string>();
-        var sb = new StringBuilder();
-        bool inQuotes = false;
 
-        for (int i = 0; i < line.Length; i++)
-        {
-            char c = line[i];
-
-            if (c == '\"')
-            {
-                if (inQuotes && i + 1 < line.Length && line[i + 1] == '\"')
-                {
-                    // "" -> " (escape)
-                    sb.Append('\"');
-                    i++;
-                }
-                else
-                {
-                    inQuotes = !inQuotes;
-                }
-            }
-            else if (c == ',' && !inQuotes)
-            {
-                result.Add(sb.ToString());
-                sb.Clear();
-            }
-            else
-            {
-                sb.Append(c);
-            }
-        }
-
-        result.Add(sb.ToString());
-        return result.ToArray();
-    }
     private void InitializeControls()
     {
         // 상단 필터
@@ -89,7 +53,6 @@ public class MainForm : Form
             Top = 15,
             AutoSize = true
         };
-
         _txtNameFilter = new TextBox
         {
             Left = lblName.Right + 5,
@@ -104,7 +67,6 @@ public class MainForm : Form
             Top = 15,
             AutoSize = true
         };
-
         _cboStatus = new ComboBox
         {
             Left = lblStatus.Right + 5,
@@ -112,9 +74,7 @@ public class MainForm : Form
             Width = 120,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-
         _cboStatus.Items.AddRange(new[] { "전체", "판매중", "판매중지" });
-        
         _cboStatus.SelectedIndex = 0;
 
         _btnSearch = new Button
@@ -124,7 +84,6 @@ public class MainForm : Form
             Top = 9,
             Width = 80
         };
-
         _btnSearch.Click += (_, _) => LoadProducts();
 
         // 그리드
@@ -142,6 +101,7 @@ public class MainForm : Form
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             AutoGenerateColumns = false
         };
+
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "ID",
@@ -190,23 +150,14 @@ public class MainForm : Form
             DataPropertyName = "Status",
             Width = 80
         });
-        _grid.CellDoubleClick += (_, _) =>
-        {
-            EditProduct();
-        };
-        _grid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            HeaderText = "상태",
-            DataPropertyName = "Status",
-            Width = 80
-        });
-
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "마진",
             DataPropertyName = "Profit",
             Width = 80
         });
+
+        _grid.CellDoubleClick += (_, _) => EditProduct();
 
         // 하단 버튼들
         _btnNew = new Button
@@ -269,6 +220,16 @@ public class MainForm : Form
         };
         _btnImport.Click += (_, _) => ImportFromCsv();
 
+        _btnQuote = new Button
+        {
+            Text = "견적서",
+            Left = _btnImport.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 80,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnQuote.Click += (_, _) => OpenQuote();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -279,19 +240,20 @@ public class MainForm : Form
         };
         _btnClose.Click += (_, _) => Close();
 
-            Controls.Add(lblName);
-            Controls.Add(_txtNameFilter);
-            Controls.Add(lblStatus);
-            Controls.Add(_cboStatus);
-            Controls.Add(_btnSearch);
-            Controls.Add(_grid);
-            Controls.Add(_btnNew);
-            Controls.Add(_btnEdit);
-            Controls.Add(_btnToggle);
-            Controls.Add(_btnLogs);
-            Controls.Add(_btnExport);
-            Controls.Add(_btnImport);
-            Controls.Add(_btnClose);
+        Controls.Add(lblName);
+        Controls.Add(_txtNameFilter);
+        Controls.Add(lblStatus);
+        Controls.Add(_cboStatus);
+        Controls.Add(_btnSearch);
+        Controls.Add(_grid);
+        Controls.Add(_btnNew);
+        Controls.Add(_btnEdit);
+        Controls.Add(_btnToggle);
+        Controls.Add(_btnLogs);
+        Controls.Add(_btnExport);
+        Controls.Add(_btnImport);
+        Controls.Add(_btnQuote);
+        Controls.Add(_btnClose);
     }
 
     private void LoadProducts()
@@ -338,7 +300,33 @@ public class MainForm : Form
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"저장 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"저장 중 오류: {ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+    }
+
+    private void EditProduct()
+    {
+        var selected = GetSelected();
+        if (selected == null)
+        {
+            MessageBox.Show("수정할 상품을 선택하세요.");
+            return;
+        }
+
+        using var dlg = new ProductDetailForm(selected);
+        if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Product != null)
+        {
+            try
+            {
+                _service.Update(dlg.Product, _currentUser);
+                LoadProducts();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"수정 중 오류: {ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
@@ -368,7 +356,8 @@ public class MainForm : Form
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"상태 변경 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"상태 변경 중 오류: {ex.Message}", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
@@ -384,31 +373,6 @@ public class MainForm : Form
 
         using var dlg = new ProductLogForm(_service, selected);
         dlg.ShowDialog(this);
-    }
-
-    private void EditProduct()
-    {
-        var selected = GetSelected();
-        if (selected == null)
-        {
-            MessageBox.Show("수정할 상품을 선택하세요.");
-            return;
-        }
-
-        using var dlg = new ProductDetailForm(selected);
-        if (dlg.ShowDialog(this) == DialogResult.OK && dlg.Product != null)
-        {
-            try
-            {
-                _service.Update(dlg.Product, _currentUser);
-                LoadProducts();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"수정 중 오류: {ex.Message}", "오류",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
     }
 
     private void ExportToCsv()
@@ -433,7 +397,6 @@ public class MainForm : Form
         {
             using var writer = new StreamWriter(sfd.FileName, false, Encoding.UTF8);
 
-            // 헤더
             writer.WriteLine("ProductId,ProductCode,ProductName,PlanName,MonthlyFeeUsd,MonthlyFeeKrw,WholesalePrice,RetailPrice,PurchasePrice,Profit,YearlyAvailable,MinMonth,MaxMonth,Status,Remark");
 
             string Escape(string? s)
@@ -475,6 +438,7 @@ public class MainForm : Form
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
+
     private void ImportFromCsv()
     {
         using var ofd = new OpenFileDialog
@@ -489,21 +453,19 @@ public class MainForm : Form
         try
         {
             string[] lines;
-            // 엑셀이 파일을 열어둔 상태여도 읽을 수 있도록 FileShare.ReadWrite 사용
+
+            // 엑셀이 열어둔 상태에서도 읽기 위해 FileShare.ReadWrite 사용 + 인코딩 자동 판별
             using (var fs = new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                // 1) BOM 검사
                 byte[] bom = new byte[3];
                 int read = fs.Read(bom, 0, 3);
 
                 bool isUtf8Bom = read == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF;
 
-                // 2) 다시 처음으로 되돌리기
                 fs.Position = 0;
 
-                // 3) 인코딩 선택
                 var encoding = isUtf8Bom
-                    ? new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)
+                    ? new UTF8Encoding(true)
                     : Encoding.Default; // 한국 윈도우에서는 CP949
 
                 using var reader = new StreamReader(fs, encoding, detectEncodingFromByteOrderMarks: true);
@@ -515,6 +477,7 @@ public class MainForm : Form
                 }
                 lines = list.ToArray();
             }
+
             if (lines.Length <= 1)
             {
                 MessageBox.Show("유효한 데이터가 없습니다.", "안내",
@@ -559,7 +522,6 @@ public class MainForm : Form
                 var code = Get("ProductCode");
                 if (string.IsNullOrWhiteSpace(code))
                 {
-                    // 코드 없는 행은 스킵
                     continue;
                 }
 
@@ -597,7 +559,7 @@ public class MainForm : Form
                 {
                     var y = Get("YearlyAvailable");
                     yearlyAvailable = y.Equals("Y", StringComparison.OrdinalIgnoreCase)
-                                    || y.Equals("true", StringComparison.OrdinalIgnoreCase);
+                                      || y.Equals("true", StringComparison.OrdinalIgnoreCase);
                 }
 
                 int minMonth = 1;
@@ -669,5 +631,47 @@ public class MainForm : Form
             MessageBox.Show($"엑셀 업로드 중 오류: {ex.Message}", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void OpenQuote()
+    {
+        using var dlg = new QuoteForm(_service, _currentUser);
+        dlg.ShowDialog(this);
+    }
+    private static string[] ParseCsvLine(string line)
+    {
+        var result = new List<string>();
+        var sb = new StringBuilder();
+        bool inQuotes = false;
+
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+
+            if (c == '\"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '\"')
+                {
+                    sb.Append('\"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(sb.ToString());
+                sb.Clear();
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        result.Add(sb.ToString());
+        return result.ToArray();
     }
 }

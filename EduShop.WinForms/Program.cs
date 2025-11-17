@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using EduShop.Core.Infrastructure;
 using EduShop.Core.Repositories;
 using EduShop.Core.Services;
+using QuestPDF.Infrastructure;
 
 namespace EduShop.WinForms;
 
@@ -15,6 +16,7 @@ internal static class Program
         try
         {
             ApplicationConfiguration.Initialize();
+            QuestPDF.Settings.License = LicenseType.Community;
 
             // 1) Windows 로컬 경로: %LOCALAPPDATA%\EduShop\edushop_winforms.db
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
