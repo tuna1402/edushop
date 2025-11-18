@@ -30,11 +30,15 @@ internal static class Program
             DatabaseInitializer.EnsureCreated(connectionString);
 
             // 3) 서비스 구성
-            var productRepo = new ProductRepository(connectionString);
-            var logRepo     = new AuditLogRepository(connectionString);
-            var service     = new ProductService(productRepo, logRepo);
+            var productRepo     = new ProductRepository(connectionString);
+            var logRepo         = new AuditLogRepository(connectionString);
+            var productService  = new ProductService(productRepo, logRepo);
 
-            Application.Run(new MainForm(service));
+            // ★ 매출 리포지토리/서비스 추가
+            var salesRepo    = new SalesRepository(connectionString);
+            var salesService = new SalesService(salesRepo);
+
+            Application.Run(new MainForm(productService, salesService));
         }
         catch (Exception ex)
         {

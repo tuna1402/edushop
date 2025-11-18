@@ -17,6 +17,7 @@ namespace EduShop.WinForms;
 public class QuoteForm : Form
 {
     private readonly ProductService _service;
+    private readonly SalesService _salesService;
     private readonly UserContext _currentUser;
     private TextBox _txtCustomer = null!;
     private TextBox _txtSchool = null!;
@@ -28,15 +29,17 @@ public class QuoteForm : Form
     private Button _btnRemove = null!;
     private Button _btnClear = null!;
     private Button _btnExportCsv = null!;
-    private Button _btnExportPdf = null!; 
+    private Button _btnExportPdf = null!;
+    private Button _btnSaveSale = null!;
     private Button _btnClose = null!;
     private Label _lblTotalAmount = null!;
     private Label _lblTotalProfit = null!;
     private BindingList<QuoteItem> _items = new();
 
-    public QuoteForm(ProductService service, UserContext currentUser)
+    public QuoteForm(ProductService service, SalesService salesService, UserContext currentUser)
     {
         _service = service;
+        _salesService = salesService;
         _currentUser = currentUser;
 
         Text = "견적서 작성";
@@ -187,6 +190,16 @@ public class QuoteForm : Form
         };
         _btnExportPdf.Click += (_, _) => ExportQuotePdf();
 
+        _btnSaveSale = new Button
+        {
+            Text = "매출로 저장",
+            Left = _btnExportPdf.Right + 10,
+            Top = bottomTop,
+            Width = 110,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnSaveSale.Click += (_, _) => SaveAsSale();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -229,7 +242,8 @@ public class QuoteForm : Form
         Controls.Add(_btnRemove);
         Controls.Add(_btnClear);
         Controls.Add(_btnExportCsv);
-        Controls.Add(_btnExportPdf); 
+        Controls.Add(_btnExportPdf);
+        Controls.Add(_btnSaveSale);
         Controls.Add(_btnClose);
         Controls.Add(_lblTotalAmount);
         Controls.Add(_lblTotalProfit);
@@ -578,6 +592,49 @@ public class QuoteForm : Form
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
+
+    private void SaveAsSale()
+    {
+        if (_items.Count == 0)
+        {
+            MessageBox.Show("매출로 저장할 항목이 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var header = new SaleHeader
+        {
+            SaleDate     = DateTime.Today,
+            CustomerName = string.IsNullOrWhiteSpace(_txtCustomer.Text) ? null : _txtCustomer.Text.Trim(),
+            SchoolName   = string.IsNullOrWhiteSpace(_txtSchool.Text)   ? null : _txtSchool.Text.Trim(),
+            Contact      = string.IsNullOrWhiteSpace(_txtContact.Text)  ? null : _txtContact.Text.Trim(),
+            Memo         = string.IsNullOrWhiteSpace(_txtMemo.Text)     ? null : _txtMemo.Text.Trim()
+        };
+
+        var items = _items.Select(q => new SaleItem
+        {
+            ProductId   = q.ProductId == 0 ? null : q.ProductId,
+            ProductCode = q.ProductCode,
+            ProductName = q.ProductName,
+            UnitPrice   = q.UnitPrice,
+            Quantity    = q.Quantity,
+            LineTotal   = q.LineTotal,
+            LineProfit  = q.LineProfit
+        }).ToList();
+
+        try
+        {
+            var saleId = _salesService.CreateSale(header, items, _currentUser);
+            MessageBox.Show($"매출로 저장되었습니다. (ID = {saleId})", "완료",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"매출 저장 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
 
     private class QuoteItem
     {

@@ -13,8 +13,8 @@ namespace EduShop.WinForms;
 public class MainForm : Form
 {
     private readonly ProductService _service;
+    private readonly SalesService _salesService;
     private readonly UserContext _currentUser = new() { UserId = "admin", UserName = "사장" };
-
     private TextBox _txtNameFilter = null!;
     private ComboBox _cboStatus = null!;
     private Button _btnSearch = null!;
@@ -26,13 +26,15 @@ public class MainForm : Form
     private Button _btnExport = null!;
     private Button _btnImport = null!;
     private Button _btnQuote = null!;
+    private Button _btnSales = null!;
     private Button _btnClose = null!;
 
     private List<Product> _currentList = new();
 
-    public MainForm(ProductService service)
+    public MainForm(ProductService service, SalesService salesService)
     {
         _service = service;
+        _salesService = salesService;
 
         Text = "EduShop 상품 관리";
         Width = 1000;
@@ -230,6 +232,16 @@ public class MainForm : Form
         };
         _btnQuote.Click += (_, _) => OpenQuote();
 
+        _btnSales = new Button
+        {
+            Text = "매출현황",
+            Left = _btnQuote.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 90,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnSales.Click += (_, _) => OpenSalesList();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -253,6 +265,7 @@ public class MainForm : Form
         Controls.Add(_btnExport);
         Controls.Add(_btnImport);
         Controls.Add(_btnQuote);
+        Controls.Add(_btnSales);
         Controls.Add(_btnClose);
     }
 
@@ -635,7 +648,7 @@ public class MainForm : Form
 
     private void OpenQuote()
     {
-        using var dlg = new QuoteForm(_service, _currentUser);
+        using var dlg = new QuoteForm(_service, _salesService, _currentUser);
         dlg.ShowDialog(this);
     }
     private static string[] ParseCsvLine(string line)
@@ -673,5 +686,11 @@ public class MainForm : Form
 
         result.Add(sb.ToString());
         return result.ToArray();
+    }
+
+    private void OpenSalesList()
+    {
+        using var dlg = new SalesListForm(_salesService);
+        dlg.ShowDialog(this);
     }
 }
