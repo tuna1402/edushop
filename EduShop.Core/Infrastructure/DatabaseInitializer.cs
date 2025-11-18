@@ -46,5 +46,39 @@ CREATE TABLE IF NOT EXISTS AuditLog (
 );
 ";
         cmd.ExecuteNonQuery();
+
+// ── 매출 헤더 테이블 ──
+cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS SaleHeader (
+    sale_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    sale_date     TEXT    NOT NULL,
+    customer_name TEXT    NULL,
+    school_name   TEXT    NULL,
+    contact       TEXT    NULL,
+    memo          TEXT    NULL,
+    total_amount  INTEGER NOT NULL DEFAULT 0,
+    total_profit  INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    created_by    TEXT    NULL
+);
+";
+        cmd.ExecuteNonQuery();
+
+// ── 매출 항목 테이블 ──
+cmd.CommandText = @"
+CREATE TABLE IF NOT EXISTS SaleItem (
+    sale_item_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+    sale_id       INTEGER NOT NULL,
+    product_id    INTEGER NULL,
+    product_code  TEXT    NOT NULL,
+    product_name  TEXT    NOT NULL,
+    unit_price    INTEGER NOT NULL,
+    quantity      INTEGER NOT NULL,
+    line_total    INTEGER NOT NULL,
+    line_profit   INTEGER NOT NULL,
+    FOREIGN KEY (sale_id) REFERENCES SaleHeader(sale_id)
+);
+";
+        cmd.ExecuteNonQuery();
     }
 }
