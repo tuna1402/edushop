@@ -14,7 +14,9 @@ public class MainForm : Form
 {
     private readonly ProductService _service;
     private readonly SalesService _salesService;
-    private readonly UserContext _currentUser = new() { UserId = "admin", UserName = "사장" };
+    private readonly AccountService _accountService;
+    private readonly CustomerService _customerService;
+    private readonly UserContext _currentUser = new() { UserId = "admin", UserName = "관리자" };
     private TextBox _txtNameFilter = null!;
     private ComboBox _cboStatus = null!;
     private Button _btnSearch = null!;
@@ -27,18 +29,28 @@ public class MainForm : Form
     private Button _btnImport = null!;
     private Button _btnQuote = null!;
     private Button _btnSales = null!;
+    private Button _btnAccounts = null!;
+    private Button _btnCustomers = null!;
     private Button _btnClose = null!;
 
     private List<Product> _currentList = new();
 
-    public MainForm(ProductService service, SalesService salesService)
+    public MainForm(
+        ProductService  service,
+        SalesService    salesService,
+        AccountService  accountService,
+        CustomerService customerService,
+        UserContext     currentUser)
     {
         _service = service;
         _salesService = salesService;
+        _accountService = accountService;
+        _customerService = customerService;
+        _currentUser    = currentUser;
 
         Text = "EduShop 상품 관리";
-        Width = 1000;
-        Height = 600;
+        Width = 1100;
+        Height = 700;
         StartPosition = FormStartPosition.CenterScreen;
 
         InitializeControls();
@@ -242,6 +254,26 @@ public class MainForm : Form
         };
         _btnSales.Click += (_, _) => OpenSalesList();
 
+        _btnAccounts = new Button
+        {
+            Text = "계정 관리",
+            Width = 100,
+            Left = ClientSize.Width - 200,
+            Top = ClientSize.Height - 40,
+            Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+        };
+        _btnAccounts.Click += (_, _) => OpenAccountListForm();
+
+        _btnCustomers = new Button
+        {
+            Text = "고객 관리",
+            Width = 100,
+            Left = _btnAccounts.Left - 110,
+            Top  = ClientSize.Height - 40,
+            Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+        };
+        _btnCustomers.Click += (_, _) => OpenCustomerListForm();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -266,6 +298,8 @@ public class MainForm : Form
         Controls.Add(_btnImport);
         Controls.Add(_btnQuote);
         Controls.Add(_btnSales);
+        Controls.Add(_btnCustomers);
+        Controls.Add(_btnAccounts);
         Controls.Add(_btnClose);
     }
 
@@ -691,6 +725,18 @@ public class MainForm : Form
     private void OpenSalesList()
     {
         using var dlg = new SalesListForm(_salesService);
+        dlg.ShowDialog(this);
+    }
+
+    private void OpenAccountListForm()
+    {
+        using var dlg = new AccountListForm(_accountService, _service, _customerService, _currentUser);
+        dlg.ShowDialog(this);
+    }
+
+    private void OpenCustomerListForm()
+    {
+        using var dlg = new CustomerListForm(_customerService, _currentUser);
         dlg.ShowDialog(this);
     }
 }

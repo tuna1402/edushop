@@ -4,6 +4,9 @@ using System.Linq;
 using System.Windows.Forms;
 using EduShop.Core.Models;
 using EduShop.Core.Services;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace EduShop.WinForms;
 
@@ -15,6 +18,7 @@ public class SalesListForm : Form
     private DateTimePicker _dtTo = null!;
     private Button _btnSearch = null!;
     private Button _btnClose = null!;
+    private Button _btnExportPdf = null!;
     private DataGridView _gridSales = null!;
     private DataGridView _gridItems = null!;
     private Label _lblSummary = null!;
@@ -198,6 +202,16 @@ public class SalesListForm : Form
         };
         _btnClose.Click += (_, _) => Close();
 
+        _btnExportPdf = new Button
+        {
+            Text = "리포트 PDF",
+            Left = ClientSize.Width - 90 - 110,   // 닫기 버튼 왼쪽에 위치
+            Top = ClientSize.Height - 35,
+            Width = 100,
+            Anchor = AnchorStyles.Right | AnchorStyles.Bottom
+        };
+        _btnExportPdf.Click += (_, _) => ExportSalesReportPdf();
+
         Controls.Add(lblFrom);
         Controls.Add(_dtFrom);
         Controls.Add(lblWave);
@@ -206,6 +220,7 @@ public class SalesListForm : Form
         Controls.Add(_gridSales);
         Controls.Add(_gridItems);
         Controls.Add(_lblSummary);
+        Controls.Add(_btnExportPdf);
         Controls.Add(_btnClose);
     }
 
@@ -236,4 +251,162 @@ public class SalesListForm : Form
         _gridItems.DataSource = null;
         _gridItems.DataSource = items;
     }
+    private void ExportSalesReportPdf()
+    {
+        if (_currentSales == null || _currentSales.Count == 0)
+        {
+            MessageBox.Show("리포트로 저장할 매출 데이터가 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var sfd = new SaveFileDialog
+        {
+            Filter = "PDF 파일 (*.pdf)|*.pdf|모든 파일 (*.*)|*.*",
+            FileName = $"sales_report_{DateTime.Now:yyyyMMddHHmm}.pdf"
+        };
+
+        if (sfd.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        try
+        {
+            var from = _dtFrom.Value.Date;
+            var to   = _dtTo.Value.Date;
+
+            var sales   = _currentSales.OrderBy(s => s.SaleDate).ThenBy(s => s.SaleId).ToList();
+            var summary = _salesService.GetSummary(from, to);
+
+            Document
+                .Create(container =>
+                {
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4);
+                        page.Margin(30);
+                        page.PageColor(Colors.White);
+                        page.DefaultTextStyle(x => x.FontSize(11));
+
+                        page.Header()
+                            .Text("매출 리포트")
+                            .SemiBold().FontSize(18).AlignCenter();
+
+                        page.Content().Column(col =>
+                        {
+                            col.Spacing(10);
+
+                            // 기간 + 합계 정보
+                            col.Item().Text($"기간: {from:yyyy-MM-dd} ~ {to:yyyy-MM-dd}");
+                            col.Item().Text(
+                                $"총 매출: {summary.TotalAmount:N0} 원 / 총 마진: {summary.TotalProfit:N0} 원");
+
+                            // 매출 목록 테이블
+                            col.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.ConstantColumn(90); // 일자
+                                    columns.RelativeColumn();   // 고객/학교
+                                    columns.ConstantColumn(100); // 총금액
+                                    columns.ConstantColumn(100); // 총마진
+                                });
+
+                                // 헤더
+                                table.Header(header =>
+                                {
+                                    header.Cell().Element(c =>
+                                            c.PaddingVertical(4)
+                                            .BorderBottom(1)
+                                            .BorderColor(Colors.Grey.Medium)
+                                            .DefaultTextStyle(x => x.SemiBold()))
+                                          .Text("일자");
+
+                                    header.Cell().Element(c =>
+                                            c.PaddingVertical(4)
+                                            .BorderBottom(1)
+                                            .BorderColor(Colors.Grey.Medium)
+                                            .DefaultTextStyle(x => x.SemiBold()))
+                                          .Text("고객 / 학교");
+
+                                    header.Cell().Element(c =>
+                                            c.PaddingVertical(4)
+                                            .BorderBottom(1)
+                                            .BorderColor(Colors.Grey.Medium)
+                                            .DefaultTextStyle(x => x.SemiBold()))
+                                          .AlignRight().Text("총금액");
+
+                                    header.Cell().Element(c =>
+                                            c.PaddingVertical(4)
+                                            .BorderBottom(1)
+                                            .BorderColor(Colors.Grey.Medium)
+                                            .DefaultTextStyle(x => x.SemiBold()))
+                                          .AlignRight().Text("총마진");
+                                });
+
+                                // 데이터 행
+                                foreach (var s in sales)
+                                {
+                                    var title = $"{s.CustomerName ?? ""} / {s.SchoolName ?? ""}".Trim(' ', '/');
+
+                                    table.Cell().Element(c => c.PaddingVertical(2))
+                                        .Text(s.SaleDate.ToString("yyyy-MM-dd"));
+
+                                    table.Cell().Element(c => c.PaddingVertical(2))
+                                        .Text(string.IsNullOrWhiteSpace(title) ? "(무기명)" : title);
+
+                                    table.Cell().Element(c => c.PaddingVertical(2))
+                                        .AlignRight().Text(s.TotalAmount.ToString("N0"));
+
+                                    table.Cell().Element(c => c.PaddingVertical(2))
+                                        .AlignRight().Text(s.TotalProfit.ToString("N0"));
+                                }
+
+                                // 합계 행
+                                table.Cell().ColumnSpan(2)
+                                    .Element(c =>
+                                        c.PaddingVertical(4)
+                                        .BorderTop(1)
+                                        .BorderColor(Colors.Grey.Medium)
+                                        .DefaultTextStyle(x => x.SemiBold()))
+                                    .AlignRight().Text("합계");
+
+                                table.Cell().Element(c =>
+                                        c.PaddingVertical(4)
+                                        .BorderTop(1)
+                                        .BorderColor(Colors.Grey.Medium)
+                                        .DefaultTextStyle(x => x.SemiBold()))
+                                    .AlignRight().Text(summary.TotalAmount.ToString("N0"));
+
+                                table.Cell().Element(c =>
+                                        c.PaddingVertical(4)
+                                        .BorderTop(1)
+                                        .BorderColor(Colors.Grey.Medium)
+                                        .DefaultTextStyle(x => x.SemiBold()))
+                                    .AlignRight().Text(summary.TotalProfit.ToString("N0"));
+                            });
+                        });
+
+                        page.Footer()
+                            .AlignRight()
+                            .Text(x =>
+                            {
+                                x.Span("페이지 ");
+                                x.CurrentPageNumber();
+                                x.Span(" / ");
+                                x.TotalPages();
+                            });
+                    });
+                })
+                .GeneratePdf(sfd.FileName);
+
+            MessageBox.Show("매출 리포트 PDF 저장이 완료되었습니다.", "완료",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"매출 리포트 PDF 저장 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
 }

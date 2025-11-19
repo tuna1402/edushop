@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Windows.Forms;
+using EduShop.Core.Common;
 using EduShop.Core.Infrastructure;
 using EduShop.Core.Repositories;
 using EduShop.Core.Services;
@@ -33,12 +34,19 @@ internal static class Program
             var productRepo     = new ProductRepository(connectionString);
             var logRepo         = new AuditLogRepository(connectionString);
             var productService  = new ProductService(productRepo, logRepo);
+            var accountRepo      = new AccountRepository(connectionString);
+            var accountLogRepo   = new AccountUsageLogRepository(connectionString);
+            var customerRepo   = new CustomerRepository(connectionString);
 
-            // ★ 매출 리포지토리/서비스 추가
+            // 4) 매출 리포지토리/서비스 추가
             var salesRepo    = new SalesRepository(connectionString);
             var salesService = new SalesService(salesRepo);
+            var accountService   = new AccountService(accountRepo, accountLogRepo);
+            var customerService = new CustomerService(customerRepo);
 
-            Application.Run(new MainForm(productService, salesService));
+            var currentUser = new UserContext { UserId = "admin", UserName = "관리자" };
+
+            Application.Run(new MainForm(productService, salesService, accountService, customerService, currentUser));
         }
         catch (Exception ex)
         {
