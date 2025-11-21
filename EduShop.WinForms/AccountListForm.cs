@@ -18,6 +18,8 @@ public class AccountListForm : Form
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
+    private readonly bool          _expiringModeLocked;
+    private readonly bool          _expiringOnly;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -41,6 +43,8 @@ public class AccountListForm : Form
 
     private List<Product> _products = new();
     private List<Account> _currentAccounts = new();
+    private bool          _expiringFilterOn;
+    private Label         _lblExpiringNotice = null!;
 
     private class AccountRow
     {
@@ -56,14 +60,18 @@ public class AccountListForm : Form
         public string?  Memo        { get; set; }
     }
 
-    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser)
+    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser,
+        bool expiringOnly = false)
     {
         _accountService = accountService;
         _productService = productService;
         _customerService = customerService;
         _currentUser    = currentUser;
+        _expiringModeLocked = expiringOnly;
+        _expiringOnly = expiringOnly;
+        _expiringFilterOn = expiringOnly;
 
-        Text = "계정 관리";
+        Text = _expiringOnly ? "만료 예정 계정 목록" : "계정 목록";
         Width = 1100;
         Height = 650;
         StartPosition = FormStartPosition.CenterParent;
@@ -212,11 +220,20 @@ public class AccountListForm : Form
         };
         _btnMore.Click += (_, _) => ShowMoreMenu();
 
+        _lblExpiringNotice = new Label
+        {
+            AutoSize = true,
+            Left = 10,
+            Top = 60,
+            Text = $"※ 오늘 기준 {AppSettingsManager.Current.ExpiringDays}일 이내 만료 예정인 계정만 표시합니다.",
+            Visible = _expiringOnly
+        };
+
         // 그리드
         _grid = new DataGridView
         {
             Left = 10,
-            Top = 80,
+            Top = 90,
             Width = ClientSize.Width - 20,
             Height = ClientSize.Height - 140,
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
@@ -335,7 +352,7 @@ public class AccountListForm : Form
 
         // "더보기" 메뉴
         _ctxMoreMenu = new ContextMenuStrip();
-        _ctxMoreMenu.Items.Add("만료 예정(30일) 보기", null, (_, _) => ShowExpiring());
+        _ctxMoreMenu.Items.Add($"만료 예정({AppSettingsManager.Current.ExpiringDays}일) 보기", null, (_, _) => ShowExpiring());
         _ctxMoreMenu.Items.Add("엑셀 등록 (Import)", null, (_, _) => ImportAccountsCsv());
 
         Controls.Add(lblEmail);
@@ -353,6 +370,7 @@ public class AccountListForm : Form
         Controls.Add(_btnReset);
         Controls.Add(_btnExportCsv);
         Controls.Add(_btnMore);
+        Controls.Add(_lblExpiringNotice);
         Controls.Add(_grid);
         Controls.Add(_btnNew);
         Controls.Add(_btnEdit);
@@ -406,6 +424,7 @@ public class AccountListForm : Form
         _chkUseDate.Checked = false;
         _dtFrom.Value = DateTime.Today;
         _dtTo.Value = DateTime.Today;
+        _expiringFilterOn = _expiringModeLocked;
         ReloadData();
     }
 
@@ -418,6 +437,17 @@ public class AccountListForm : Form
     private void ApplyFilter()
     {
         IEnumerable<Account> query = _currentAccounts;
+
+        if (_expiringFilterOn)
+        {
+            var today = DateTime.Today;
+            var limit = today.AddDays(AppSettingsManager.Current.ExpiringDays);
+
+            query = query
+                .Where(a => a.SubscriptionEndDate.Date >= today &&
+                            a.SubscriptionEndDate.Date <= limit)
+                .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady);
+        }
 
         var email = _txtEmail.Text.Trim();
         if (!string.IsNullOrEmpty(email))
@@ -466,9 +496,13 @@ public class AccountListForm : Form
             }
         }
 
-        var list = query
-            .OrderBy(a => a.SubscriptionEndDate)
-            .ThenBy(a => a.AccountId)
+        var ordered = query.OrderBy(a => a.SubscriptionEndDate);
+        if (!_expiringFilterOn)
+        {
+            ordered = ordered.ThenBy(a => a.AccountId);
+        }
+
+        var list = ordered
             .Select(a =>
             {
                 var product = _products.FirstOrDefault(p => p.ProductId == a.ProductId);
@@ -616,9 +650,8 @@ public class AccountListForm : Form
 
     private void ShowExpiring()
     {
-        const int days = 30;
-        _currentAccounts = _accountService.GetExpiring(DateTime.Today, days);
-        ApplyFilter();
+        _expiringFilterOn = true;
+        ReloadData();
     }
 
     // ─────────────────────────────────────────────────────────────
