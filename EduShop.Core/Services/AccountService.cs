@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
 using EduShop.Core.Repositories;
@@ -145,9 +147,24 @@ public class AccountService
         var acc = _accountRepo.GetById(accountId);
         if (acc == null) return;
 
-        if (acc.Status == AccountStatus.Canceled)
+        if (acc.Status == AccountStatus.Canceled ||
+            acc.Status == AccountStatus.ResetReady)
         {
-            throw new InvalidOperationException("이미 CANCELED 상태입니다.");
+            return;
+        }
+
+        var cancellableStatuses = new HashSet<string>
+        {
+            AccountStatus.InUse,
+            AccountStatus.Expiring,
+            AccountStatus.SubsActive,
+            AccountStatus.Delivered,
+            AccountStatus.Created
+        };
+
+        if (!cancellableStatuses.Contains(acc.Status))
+        {
+            return;
         }
 
         var oldStatus = acc.Status;
@@ -161,7 +178,7 @@ public class AccountService
             CustomerId  = acc.CustomerId,
             ProductId   = acc.ProductId,
             ActionType  = AccountActionType.Cancel,
-            RequestDate = acc.SubscriptionStartDate,
+            RequestDate = DateTime.Today,
             ExpireDate  = acc.SubscriptionEndDate,
             Description = $"구독 취소: {oldStatus} → {acc.Status}"
         }, user.UserName);
