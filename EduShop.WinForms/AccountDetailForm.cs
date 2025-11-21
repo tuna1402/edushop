@@ -284,7 +284,7 @@ public class AccountDetailForm : Form
         Text = $"계정 상세 - {acc.Email}";
 
         _txtEmail.Text = acc.Email;
-        _txtStatus.Text = AccountStatusHelper.ToDisplay(acc.Status);
+        _txtStatus.Text = acc.Status;
         _txtProduct.Text = GetProductName(acc.ProductId);
         _txtCustomer.Text = acc.CustomerId.HasValue ? GetCustomerName(acc.CustomerId.Value) : "";
         _txtStartDate.Text = acc.SubscriptionStartDate.ToString("yyyy-MM-dd");
