@@ -452,9 +452,11 @@ public class AccountListForm : Form
             var limit = today.AddDays(AppSettingsManager.Current.ExpiringDays);
 
             query = query
-                .Where(a => a.SubscriptionEndDate.HasValue)
-                .Where(a => a.SubscriptionEndDate.Value.Date >= today &&
-                            a.SubscriptionEndDate.Value.Date <= limit)
+                .Where(a =>
+                {
+                    var endDate = a.SubscriptionEndDate.Date;
+                    return endDate >= today && endDate <= limit;
+                })
                 .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady);
         }
 
