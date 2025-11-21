@@ -14,12 +14,13 @@ namespace EduShop.WinForms;
 
 public class AccountListForm : Form
 {
+    private const int ExpiringDays = 30;
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
     private readonly bool          _expiringModeLocked;
-    private readonly bool          _expiringOnly;
+    private bool          _expiringOnly;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -36,7 +37,6 @@ public class AccountListForm : Form
     private DataGridView   _grid = null!;
     private Button         _btnNew = null!;
     private Button         _btnEdit = null!;
-    private Button         _btnDetail = null!;
     private Button         _btnCancel = null!;
     private Button         _btnClose = null!;
 
@@ -55,15 +55,20 @@ public class AccountListForm : Form
         public string   Product     { get; set; } = "";
         public string   Status      { get; set; } = "";
         public DateTime StartDate   { get; set; }
-        public DateTime EndDate     { get; set; }
+        public DateTime? EndDate     { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public long?    CustomerId  { get; set; }
         public long?    OrderId     { get; set; }
         public string?  Memo        { get; set; }
     }
 
-    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser,
-        bool expiringOnly = false)
+    public AccountListForm(
+        AccountService accountService, 
+        ProductService productService, 
+        CustomerService customerService, 
+        UserContext currentUser,
+        bool expiringOnly = false
+        )
     {
         _accountService = accountService;
         _productService = productService;
@@ -71,7 +76,6 @@ public class AccountListForm : Form
         _currentUser    = currentUser;
         _expiringModeLocked = expiringOnly;
         _expiringOnly = expiringOnly;
-        _expiringFilterOn = expiringOnly;
 
         Text = _expiringOnly ? "만료 예정 계정 목록" : "계정 목록";
         Width = 1100;
@@ -329,20 +333,10 @@ public class AccountListForm : Form
         };
         _btnEdit.Click += (_, _) => EditSelected();
 
-        _btnDetail = new Button
-        {
-            Text = "상세 보기",
-            Left = _btnEdit.Right + 10,
-            Top = ClientSize.Height - 45,
-            Width = 100,
-            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
-        };
-        _btnDetail.Click += (_, _) => ShowDetail();
-
         _btnCancel = new Button
         {
             Text = _expiringOnly ? "만료 예정 구독 취소" : "구독 취소",
-            Left = _btnDetail.Right + 10,
+            Left = _btnEdit.Right + 10,
             Top = ClientSize.Height - 45,
             Width = 120,
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
@@ -397,7 +391,6 @@ public class AccountListForm : Form
         Controls.Add(_grid);
         Controls.Add(_btnNew);
         Controls.Add(_btnEdit);
-        Controls.Add(_btnDetail);
         Controls.Add(_btnCancel);
         Controls.Add(_btnClose);
     }
@@ -450,13 +443,15 @@ public class AccountListForm : Form
         _dtFrom.Value = DateTime.Today;
         _dtTo.Value = DateTime.Today;
         _expiringFilterOn = _expiringModeLocked;
-        _lblExpiringNotice.Visible = _expiringOnly;
+        _expiringOnly = _expiringModeLocked;
         ReloadData();
     }
 
     private void ReloadData()
     {
-        _currentAccounts = _accountService.GetAll();
+        _currentAccounts = _expiringOnly
+            ? _accountService.GetExpiring(DateTime.Today, ExpiringDays)
+            : _accountService.GetAll();
         ApplyFilter();
     }
 
@@ -731,7 +726,7 @@ public class AccountListForm : Form
 
     private void ShowExpiring()
     {
-        _expiringFilterOn = true;
+        _expiringOnly = true;
         ReloadData();
     }
 
