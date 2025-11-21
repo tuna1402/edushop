@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Microsoft.Data.Sqlite;
 using EduShop.Core.Models;
 
@@ -68,11 +69,18 @@ VALUES
         cmd.ExecuteNonQuery();
     }
 
-    public List<AccountUsageLog> GetForAccount(long accountId)
+    public List<AccountUsageLog> GetForAccount(
+        long accountId,
+        DateTime? from = null,
+        DateTime? to = null,
+        long? customerId = null,
+        long? productId = null)
     {
         using var conn = Open();
         using var cmd  = conn.CreateCommand();
-        cmd.CommandText = @"
+
+        var sb = new StringBuilder();
+        sb.Append(@"
 SELECT log_id,
        account_id,
        customer_id,
@@ -85,9 +93,37 @@ SELECT log_id,
        created_by
 FROM   AccountUsageLog
 WHERE  account_id = $accountId
-ORDER BY created_at ASC, log_id ASC;
-";
+");
+
         cmd.Parameters.AddWithValue("$accountId", accountId);
+
+        if (from.HasValue)
+        {
+            sb.Append("  AND request_date >= $from\n");
+            cmd.Parameters.AddWithValue("$from", ToDate(from));
+        }
+
+        if (to.HasValue)
+        {
+            sb.Append("  AND request_date <= $to\n");
+            cmd.Parameters.AddWithValue("$to", ToDate(to));
+        }
+
+        if (customerId.HasValue)
+        {
+            sb.Append("  AND customer_id = $customerId\n");
+            cmd.Parameters.AddWithValue("$customerId", customerId.Value);
+        }
+
+        if (productId.HasValue)
+        {
+            sb.Append("  AND product_id = $productId\n");
+            cmd.Parameters.AddWithValue("$productId", productId.Value);
+        }
+
+        sb.Append("ORDER BY created_at DESC, log_id DESC;\n");
+
+        cmd.CommandText = sb.ToString();
 
         using var reader = cmd.ExecuteReader();
         var list = new List<AccountUsageLog>();
