@@ -569,8 +569,7 @@ public class MainForm : Form
 
     private void OpenExpiringAccountList()
     {
-        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser);
-        // TODO: 여기서 만료 예정 필터 옵션을 넘기도록 개선 가능
+        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser, expiringOnly: true);
         ShowEmbeddedForm(f);
     }
 
