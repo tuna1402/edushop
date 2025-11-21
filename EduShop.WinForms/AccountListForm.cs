@@ -37,6 +37,7 @@ public class AccountListForm : Form
     private DataGridView   _grid = null!;
     private Button         _btnNew = null!;
     private Button         _btnEdit = null!;
+    private Button         _btnCancel = null!;
     private Button         _btnClose = null!;
 
     private ContextMenuStrip _ctxRowMenu = null!;
@@ -332,6 +333,16 @@ public class AccountListForm : Form
         };
         _btnEdit.Click += (_, _) => EditSelected();
 
+        _btnCancel = new Button
+        {
+            Text = _expiringOnly ? "만료 예정 구독 취소" : "구독 취소",
+            Left = _btnEdit.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 120,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnCancel.Click += (_, _) => CancelSelected();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -348,7 +359,7 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add("계정 삭제(비활성화)", null, (_, _) => DeleteSelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("납품 처리", null, (_, _) => DeliverSelected());
-        _ctxRowMenu.Items.Add("구독 취소", null, (_, _) => CancelSelected());
+        _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelected());
         _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("선택 계정 납품용 엑셀", null, (_, _) => ExportDeliveryCsv());
@@ -379,6 +390,7 @@ public class AccountListForm : Form
         Controls.Add(_grid);
         Controls.Add(_btnNew);
         Controls.Add(_btnEdit);
+        Controls.Add(_btnCancel);
         Controls.Add(_btnClose);
     }
 
@@ -500,9 +512,9 @@ public class AccountListForm : Form
                     break;
                 case 2: // 납품일
                     query = query.Where(a =>
-                        a.DeliveryDate.HasValue &&
-                        a.DeliveryDate.Value.Date >= from &&
-                        a.DeliveryDate.Value.Date <= to);
+                        a.DeliveryDate is DateTime delivery &&
+                        delivery.Date >= from &&
+                        delivery.Date <= to);
                     break;
             }
         }
@@ -546,6 +558,21 @@ public class AccountListForm : Form
             return null;
 
         return _currentAccounts.FirstOrDefault(a => a.AccountId == row.AccountId);
+    }
+
+    private List<Account> GetSelectedAccounts()
+    {
+        if (_grid.SelectedRows.Count == 0)
+            return new List<Account>();
+
+        var ids = _grid.SelectedRows
+            .Cast<DataGridViewRow>()
+            .Select(r => ((AccountRow)r.DataBoundItem).AccountId)
+            .ToHashSet();
+
+        return _currentAccounts
+            .Where(a => ids.Contains(a.AccountId))
+            .ToList();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -609,11 +636,25 @@ public class AccountListForm : Form
 
     private void CancelSelected()
     {
-        var acc = GetSelectedAccount();
-        if (acc == null) return;
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("구독 취소할 계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var cancellable = selected
+            .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady)
+            .ToList();
+
+        if (cancellable.Count == 0)
+        {
+            MessageBox.Show("선택된 계정은 이미 취소되었거나 재사용 준비 상태입니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
 
         var result = MessageBox.Show(
-            $"계정 [{acc.Email}] 구독을 취소하시겠습니까?",
+            $"선택한 {cancellable.Count}개 계정의 구독을 취소(CANCELED) 상태로 변경하시겠습니까?",
             "구독 취소 확인",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
@@ -621,15 +662,29 @@ public class AccountListForm : Form
         if (result != DialogResult.Yes)
             return;
 
-        try
+        var errors = new List<string>();
+
+        foreach (var acc in cancellable)
         {
-            _accountService.CancelSubscription(acc.AccountId, _currentUser);
-            ReloadData();
+            try
+            {
+                _accountService.CancelSubscription(acc.AccountId, _currentUser);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{acc.Email}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+
+        ReloadData();
+
+        if (errors.Count > 0)
         {
-            MessageBox.Show(ex.Message, "오류",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("일부 계정 처리 중 오류:\n" + string.Join("\n", errors.Take(5)), "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        else
+        {
+            MessageBox.Show("구독 취소가 완료되었습니다.", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
 
