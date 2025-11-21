@@ -18,6 +18,8 @@ public class AccountListForm : Form
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
+    private readonly bool          _expiringModeLocked;
+    private readonly bool          _expiringOnly;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -34,6 +36,8 @@ public class AccountListForm : Form
     private DataGridView   _grid = null!;
     private Button         _btnNew = null!;
     private Button         _btnEdit = null!;
+    private Button         _btnDetail = null!;
+    private Button         _btnCancel = null!;
     private Button         _btnClose = null!;
 
     private ContextMenuStrip _ctxRowMenu = null!;
@@ -41,6 +45,8 @@ public class AccountListForm : Form
 
     private List<Product> _products = new();
     private List<Account> _currentAccounts = new();
+    private bool          _expiringFilterOn = false;
+    private Label         _lblExpiringNotice = null!;
 
     private class AccountRow
     {
@@ -56,14 +62,18 @@ public class AccountListForm : Form
         public string?  Memo        { get; set; }
     }
 
-    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser)
+    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser,
+        bool expiringOnly = false)
     {
         _accountService = accountService;
         _productService = productService;
         _customerService = customerService;
         _currentUser    = currentUser;
+        _expiringModeLocked = expiringOnly;
+        _expiringOnly = expiringOnly;
+        _expiringFilterOn = expiringOnly;
 
-        Text = "계정 관리";
+        Text = _expiringOnly ? "만료 예정 계정 목록" : "계정 목록";
         Width = 1100;
         Height = 650;
         StartPosition = FormStartPosition.CenterParent;
@@ -212,11 +222,20 @@ public class AccountListForm : Form
         };
         _btnMore.Click += (_, _) => ShowMoreMenu();
 
+        _lblExpiringNotice = new Label
+        {
+            AutoSize = true,
+            Left = 10,
+            Top = 60,
+            Text = $"※ 오늘 기준 {AppSettingsManager.Current.ExpiringDays}일 이내 만료 예정인 계정만 표시합니다.",
+            Visible = _expiringOnly
+        };
+
         // 그리드
         _grid = new DataGridView
         {
             Left = 10,
-            Top = 80,
+            Top = 90,
             Width = ClientSize.Width - 20,
             Height = ClientSize.Height - 140,
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
@@ -286,7 +305,7 @@ public class AccountListForm : Form
             Width = 80
         });
 
-        _grid.DoubleClick += (_, _) => EditSelected();
+        _grid.DoubleClick += (_, _) => ShowDetail();
         _grid.KeyDown += GridOnKeyDown;
 
         // 하단 버튼 (심플하게 3개만)
@@ -310,6 +329,26 @@ public class AccountListForm : Form
         };
         _btnEdit.Click += (_, _) => EditSelected();
 
+        _btnDetail = new Button
+        {
+            Text = "상세 보기",
+            Left = _btnEdit.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 100,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnDetail.Click += (_, _) => ShowDetail();
+
+        _btnCancel = new Button
+        {
+            Text = _expiringOnly ? "만료 예정 구독 취소" : "구독 취소",
+            Left = _btnDetail.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 120,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnCancel.Click += (_, _) => CancelSelected();
+
         _btnClose = new Button
         {
             Text = "닫기",
@@ -322,11 +361,12 @@ public class AccountListForm : Form
 
         // 컨텍스트 메뉴 (그리드 우클릭)
         _ctxRowMenu = new ContextMenuStrip();
+        _ctxRowMenu.Items.Add("계정 상세", null, (_, _) => ShowDetail());
         _ctxRowMenu.Items.Add("계정 수정(&E)", null, (_, _) => EditSelected());
         _ctxRowMenu.Items.Add("계정 삭제(비활성화)", null, (_, _) => DeleteSelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("납품 처리", null, (_, _) => DeliverSelected());
-        _ctxRowMenu.Items.Add("구독 취소", null, (_, _) => CancelSelected());
+        _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelected());
         _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("선택 계정 납품용 엑셀", null, (_, _) => ExportDeliveryCsv());
@@ -335,7 +375,7 @@ public class AccountListForm : Form
 
         // "더보기" 메뉴
         _ctxMoreMenu = new ContextMenuStrip();
-        _ctxMoreMenu.Items.Add("만료 예정(30일) 보기", null, (_, _) => ShowExpiring());
+        _ctxMoreMenu.Items.Add($"만료 예정({AppSettingsManager.Current.ExpiringDays}일) 보기", null, (_, _) => ShowExpiring());
         _ctxMoreMenu.Items.Add("엑셀 등록 (Import)", null, (_, _) => ImportAccountsCsv());
 
         Controls.Add(lblEmail);
@@ -353,9 +393,12 @@ public class AccountListForm : Form
         Controls.Add(_btnReset);
         Controls.Add(_btnExportCsv);
         Controls.Add(_btnMore);
+        Controls.Add(_lblExpiringNotice);
         Controls.Add(_grid);
         Controls.Add(_btnNew);
         Controls.Add(_btnEdit);
+        Controls.Add(_btnDetail);
+        Controls.Add(_btnCancel);
         Controls.Add(_btnClose);
     }
 
@@ -406,6 +449,8 @@ public class AccountListForm : Form
         _chkUseDate.Checked = false;
         _dtFrom.Value = DateTime.Today;
         _dtTo.Value = DateTime.Today;
+        _expiringFilterOn = _expiringModeLocked;
+        _lblExpiringNotice.Visible = _expiringOnly;
         ReloadData();
     }
 
@@ -418,6 +463,20 @@ public class AccountListForm : Form
     private void ApplyFilter()
     {
         IEnumerable<Account> query = _currentAccounts;
+
+        if (_expiringFilterOn)
+        {
+            var today = DateTime.Today;
+            var limit = today.AddDays(AppSettingsManager.Current.ExpiringDays);
+
+            query = query
+                .Where(a =>
+                {
+                    var endDate = a.SubscriptionEndDate.Date;
+                    return endDate >= today && endDate <= limit;
+                })
+                .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady);
+        }
 
         var email = _txtEmail.Text.Trim();
         if (!string.IsNullOrEmpty(email))
@@ -459,16 +518,20 @@ public class AccountListForm : Form
                     break;
                 case 2: // 납품일
                     query = query.Where(a =>
-                        a.DeliveryDate.HasValue &&
-                        a.DeliveryDate.Value.Date >= from &&
-                        a.DeliveryDate.Value.Date <= to);
+                        a.DeliveryDate is DateTime delivery &&
+                        delivery.Date >= from &&
+                        delivery.Date <= to);
                     break;
             }
         }
 
-        var list = query
-            .OrderBy(a => a.SubscriptionEndDate)
-            .ThenBy(a => a.AccountId)
+        var ordered = query.OrderBy(a => a.SubscriptionEndDate);
+        if (!_expiringFilterOn)
+        {
+            ordered = ordered.ThenBy(a => a.AccountId);
+        }
+
+        var list = ordered
             .Select(a =>
             {
                 var product = _products.FirstOrDefault(p => p.ProductId == a.ProductId);
@@ -503,6 +566,21 @@ public class AccountListForm : Form
         return _currentAccounts.FirstOrDefault(a => a.AccountId == row.AccountId);
     }
 
+    private List<Account> GetSelectedAccounts()
+    {
+        if (_grid.SelectedRows.Count == 0)
+            return new List<Account>();
+
+        var ids = _grid.SelectedRows
+            .Cast<DataGridViewRow>()
+            .Select(r => ((AccountRow)r.DataBoundItem).AccountId)
+            .ToHashSet();
+
+        return _currentAccounts
+            .Where(a => ids.Contains(a.AccountId))
+            .ToList();
+    }
+
     // ─────────────────────────────────────────────────────────────
     //  CRUD / 상태 변경 액션
     // ─────────────────────────────────────────────────────────────
@@ -525,6 +603,15 @@ public class AccountListForm : Form
         {
             ReloadData();
         }
+    }
+
+    private void ShowDetail()
+    {
+        var acc = GetSelectedAccount();
+        if (acc == null) return;
+
+        using var dlg = new AccountDetailForm(_accountService, _productService, _customerService, acc.AccountId);
+        dlg.ShowDialog(this);
     }
 
     private void DeleteSelected()
@@ -564,11 +651,25 @@ public class AccountListForm : Form
 
     private void CancelSelected()
     {
-        var acc = GetSelectedAccount();
-        if (acc == null) return;
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("구독 취소할 계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var cancellable = selected
+            .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady)
+            .ToList();
+
+        if (cancellable.Count == 0)
+        {
+            MessageBox.Show("선택된 계정은 이미 취소되었거나 재사용 준비 상태입니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
 
         var result = MessageBox.Show(
-            $"계정 [{acc.Email}] 구독을 취소하시겠습니까?",
+            $"선택한 {cancellable.Count}개 계정의 구독을 취소(CANCELED) 상태로 변경하시겠습니까?",
             "구독 취소 확인",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
@@ -576,15 +677,29 @@ public class AccountListForm : Form
         if (result != DialogResult.Yes)
             return;
 
-        try
+        var errors = new List<string>();
+
+        foreach (var acc in cancellable)
         {
-            _accountService.CancelSubscription(acc.AccountId, _currentUser);
-            ReloadData();
+            try
+            {
+                _accountService.CancelSubscription(acc.AccountId, _currentUser);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{acc.Email}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
+
+        ReloadData();
+
+        if (errors.Count > 0)
         {
-            MessageBox.Show(ex.Message, "오류",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("일부 계정 처리 중 오류:\n" + string.Join("\n", errors.Take(5)), "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        else
+        {
+            MessageBox.Show("구독 취소가 완료되었습니다.", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
     }
 
@@ -616,9 +731,8 @@ public class AccountListForm : Form
 
     private void ShowExpiring()
     {
-        const int days = 30;
-        _currentAccounts = _accountService.GetExpiring(DateTime.Today, days);
-        ApplyFilter();
+        _expiringFilterOn = true;
+        ReloadData();
     }
 
     // ─────────────────────────────────────────────────────────────
