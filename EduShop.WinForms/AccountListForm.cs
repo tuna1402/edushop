@@ -20,6 +20,7 @@ public class AccountListForm : Form
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
     private readonly bool          _expiringModeLocked;
+    private bool          _expiringOnly;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -43,7 +44,8 @@ public class AccountListForm : Form
 
     private List<Product> _products = new();
     private List<Account> _currentAccounts = new();
-    private bool          _expiringOnly;
+    private bool          _expiringFilterOn = false;
+    private Label         _lblExpiringNotice = null!;
 
     private class AccountRow
     {
@@ -52,7 +54,7 @@ public class AccountListForm : Form
         public string   Product     { get; set; } = "";
         public string   Status      { get; set; } = "";
         public DateTime StartDate   { get; set; }
-        public DateTime EndDate     { get; set; }
+        public DateTime? EndDate     { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public long?    CustomerId  { get; set; }
         public long?    OrderId     { get; set; }
@@ -427,6 +429,7 @@ public class AccountListForm : Form
         _chkUseDate.Checked = false;
         _dtFrom.Value = DateTime.Today;
         _dtTo.Value = DateTime.Today;
+        _expiringFilterOn = _expiringModeLocked;
         _expiringOnly = _expiringModeLocked;
         ReloadData();
     }
