@@ -22,8 +22,16 @@ public class AccountService
     public Account? Get(long accountId) =>
         _accountRepo.GetById(accountId);
 
-    public List<AccountUsageLog> GetUsageLogs(long accountId) =>
-        _logRepo.GetForAccount(accountId);
+    public Account? GetById(long accountId) =>
+        _accountRepo.GetById(accountId);
+
+    public List<AccountUsageLog> GetUsageLogs(
+        long accountId,
+        DateTime? from = null,
+        DateTime? to = null,
+        long? customerId = null,
+        long? productId = null) =>
+        _logRepo.GetForAccount(accountId, from, to, customerId, productId);
 
     public long Create(Account acc, UserContext user)
     {

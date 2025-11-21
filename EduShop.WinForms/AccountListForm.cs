@@ -309,7 +309,7 @@ public class AccountListForm : Form
             Width = 80
         });
 
-        _grid.DoubleClick += (_, _) => EditSelected();
+        _grid.DoubleClick += (_, _) => ShowDetail();
         _grid.KeyDown += GridOnKeyDown;
 
         // 하단 버튼 (심플하게 3개만)
@@ -355,6 +355,7 @@ public class AccountListForm : Form
 
         // 컨텍스트 메뉴 (그리드 우클릭)
         _ctxRowMenu = new ContextMenuStrip();
+        _ctxRowMenu.Items.Add("계정 상세", null, (_, _) => ShowDetail());
         _ctxRowMenu.Items.Add("계정 수정(&E)", null, (_, _) => EditSelected());
         _ctxRowMenu.Items.Add("계정 삭제(비활성화)", null, (_, _) => DeleteSelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
@@ -597,6 +598,15 @@ public class AccountListForm : Form
         {
             ReloadData();
         }
+    }
+
+    private void ShowDetail()
+    {
+        var acc = GetSelectedAccount();
+        if (acc == null) return;
+
+        using var dlg = new AccountDetailForm(_accountService, _productService, _customerService, acc.AccountId);
+        dlg.ShowDialog(this);
     }
 
     private void DeleteSelected()
