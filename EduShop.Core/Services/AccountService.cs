@@ -218,6 +218,49 @@ public class AccountService
             Description = $"재사용 준비: {oldStatus} → {acc.Status}"
         }, user.UserName);
     }
+
+    public void ReuseAccount(
+        long accountId,
+        long newCustomerId,
+        long newProductId,
+        DateTime newStartDate,
+        DateTime newEndDate,
+        long? newOrderId,
+        DateTime? newDeliveryDate,
+        UserContext user)
+    {
+        var acc = _accountRepo.GetById(accountId);
+        if (acc == null)
+            throw new InvalidOperationException("계정을 찾을 수 없습니다.");
+
+        if (acc.Status != AccountStatus.ResetReady)
+        {
+            throw new InvalidOperationException("RESET_READY 상태에서만 재사용할 수 있습니다.");
+        }
+
+        acc.CustomerId            = newCustomerId;
+        acc.ProductId             = newProductId;
+        acc.SubscriptionStartDate = newStartDate.Date;
+        acc.SubscriptionEndDate   = newEndDate.Date;
+        acc.OrderId               = newOrderId;
+        acc.DeliveryDate          = newDeliveryDate?.Date;
+        acc.Status                = acc.DeliveryDate.HasValue
+            ? AccountStatus.Delivered
+            : AccountStatus.SubsActive;
+
+        _accountRepo.Update(acc, user.UserName);
+
+        _logRepo.Insert(new AccountUsageLog
+        {
+            AccountId   = acc.AccountId,
+            CustomerId  = acc.CustomerId,
+            ProductId   = acc.ProductId,
+            ActionType  = AccountActionType.Reuse,
+            RequestDate = acc.SubscriptionStartDate,
+            ExpireDate  = acc.SubscriptionEndDate,
+            Description = "계정 재사용"
+        }, user.UserName);
+    }
     public List<Account> GetExpiring(DateTime referenceDate, int days)
         => _accountRepo.GetExpiring(referenceDate, days);
         

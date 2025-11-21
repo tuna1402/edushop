@@ -54,6 +54,7 @@ public class AccountListForm : Form
         public string   Email       { get; set; } = "";
         public string   Product     { get; set; } = "";
         public string   Status      { get; set; } = "";
+        public string   StatusDisplay { get; set; } = "";
         public DateTime StartDate   { get; set; }
         public DateTime? EndDate     { get; set; }
         public DateTime? DeliveryDate { get; set; }
@@ -121,14 +122,9 @@ public class AccountListForm : Form
             Width = 130,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        _cboStatus.Items.Add(""); // 전체
-        _cboStatus.Items.Add(AccountStatus.Created);
-        _cboStatus.Items.Add(AccountStatus.SubsActive);
-        _cboStatus.Items.Add(AccountStatus.Delivered);
-        _cboStatus.Items.Add(AccountStatus.InUse);
-        _cboStatus.Items.Add(AccountStatus.Expiring);
-        _cboStatus.Items.Add(AccountStatus.Canceled);
-        _cboStatus.Items.Add(AccountStatus.ResetReady);
+        _cboStatus.DisplayMember = "Display";
+        _cboStatus.ValueMember   = "Code";
+        _cboStatus.DataSource    = AccountStatusHelper.GetAllWithEmpty().Select(x => new { x.Code, x.Display }).ToList();
         _cboStatus.SelectedIndex = 0;
 
         var lblProduct = new Label
@@ -272,7 +268,7 @@ public class AccountListForm : Form
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "상태",
-            DataPropertyName = "Status",
+            DataPropertyName = "StatusDisplay",
             Width = 100
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
@@ -482,7 +478,7 @@ public class AccountListForm : Form
 
         if (_cboStatus.SelectedIndex > 0)
         {
-            var st = (string)_cboStatus.SelectedItem!;
+            var st = (string)_cboStatus.SelectedValue!;
             query = query.Where(a => a.Status == st);
         }
 
@@ -540,6 +536,7 @@ public class AccountListForm : Form
                     Email        = a.Email,
                     Product      = productName,
                     Status       = a.Status,
+                    StatusDisplay = AccountStatusHelper.ToDisplay(a.Status),
                     StartDate    = a.SubscriptionStartDate,
                     EndDate      = a.SubscriptionEndDate,
                     DeliveryDate = a.DeliveryDate,
@@ -644,7 +641,7 @@ public class AccountListForm : Form
         }
     }
 
-    private void CancelSelected()
+    private void ReuseSelectedAccount()
     {
         var selected = GetSelectedAccounts();
         if (selected.Count == 0)
