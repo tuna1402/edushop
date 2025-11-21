@@ -511,8 +511,8 @@ public class MainForm : Form
     // ── 파일/도구 관련 ────────────────────────────
     private void OpenSettings()
     {
-        MessageBox.Show("환경 설정 화면은 추후 구현 예정입니다.", "안내",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
+        using var dlg = new SettingsForm();
+        dlg.ShowDialog(this);
     }
 
     // 현재 화면이 이미 상품 목록이라 포커스만 주면 됨
@@ -569,8 +569,7 @@ public class MainForm : Form
 
     private void OpenExpiringAccountList()
     {
-        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser);
-        // TODO: 여기서 만료 예정 필터 옵션을 넘기도록 개선 가능
+        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser, expiringOnly: true);
         ShowEmbeddedForm(f);
     }
 

@@ -14,10 +14,12 @@ namespace EduShop.WinForms;
 
 public class AccountListForm : Form
 {
+    private const int ExpiringDays = 30;
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
+    private readonly bool          _expiringModeLocked;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -41,6 +43,7 @@ public class AccountListForm : Form
 
     private List<Product> _products = new();
     private List<Account> _currentAccounts = new();
+    private bool          _expiringOnly;
 
     private class AccountRow
     {
@@ -56,12 +59,20 @@ public class AccountListForm : Form
         public string?  Memo        { get; set; }
     }
 
-    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser)
+    public AccountListForm(
+        AccountService accountService, 
+        ProductService productService, 
+        CustomerService customerService, 
+        UserContext currentUser,
+        bool expiringOnly = false
+        )
     {
         _accountService = accountService;
         _productService = productService;
         _customerService = customerService;
         _currentUser    = currentUser;
+        _expiringModeLocked = expiringOnly;
+        _expiringOnly = expiringOnly;
 
         Text = "계정 관리";
         Width = 1100;
@@ -406,12 +417,15 @@ public class AccountListForm : Form
         _chkUseDate.Checked = false;
         _dtFrom.Value = DateTime.Today;
         _dtTo.Value = DateTime.Today;
+        _expiringOnly = _expiringModeLocked;
         ReloadData();
     }
 
     private void ReloadData()
     {
-        _currentAccounts = _accountService.GetAll();
+        _currentAccounts = _expiringOnly
+            ? _accountService.GetExpiring(DateTime.Today, ExpiringDays)
+            : _accountService.GetAll();
         ApplyFilter();
     }
 
@@ -616,9 +630,8 @@ public class AccountListForm : Form
 
     private void ShowExpiring()
     {
-        const int days = 30;
-        _currentAccounts = _accountService.GetExpiring(DateTime.Today, days);
-        ApplyFilter();
+        _expiringOnly = true;
+        ReloadData();
     }
 
     // ─────────────────────────────────────────────────────────────
