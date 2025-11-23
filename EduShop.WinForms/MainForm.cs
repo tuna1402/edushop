@@ -511,8 +511,8 @@ public class MainForm : Form
     // ── 파일/도구 관련 ────────────────────────────
     private void OpenSettings()
     {
-        MessageBox.Show("환경 설정 화면은 추후 구현 예정입니다.", "안내",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
+        using var dlg = new SettingsForm();
+        dlg.ShowDialog(this);
     }
 
     // 현재 화면이 이미 상품 목록이라 포커스만 주면 됨
@@ -575,13 +575,8 @@ public class MainForm : Form
 
     private void OpenAccountStatusSummary()
     {
-        using var dlg = new AccountStatusSummaryForm(
-            _accountService,
-            _service,
-            _customerService,
-            _currentUser);
-
-        dlg.ShowDialog(this);
+        MessageBox.Show("계정 상태별 통계 화면은 추후 구현 예정입니다.", "안내",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void OpenCodeMaster()
