@@ -293,4 +293,55 @@ FROM   SaleHeader
 
         return new SalesSummary();
     }
+
+    public List<SalesSummaryRow> GetSummaryRows(DateTime from, DateTime to)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+
+        cmd.CommandText = @"
+SELECT sh.sale_date,
+       IFNULL(sh.customer_name, ''),
+       si.product_id,
+       si.product_name,
+       si.quantity,
+       si.line_total,
+       si.line_profit
+FROM   SaleHeader sh
+       INNER JOIN SaleItem si ON sh.sale_id = si.sale_id
+WHERE  sh.sale_date >= $from
+   AND sh.sale_date <= $to;";
+
+        cmd.Parameters.AddWithValue("$from", from.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        cmd.Parameters.AddWithValue("$to", to.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+
+        using var reader = cmd.ExecuteReader();
+        var rows = new List<SalesSummaryRow>();
+
+        while (reader.Read())
+        {
+            var date = DateTime.Parse(reader.GetString(0), CultureInfo.InvariantCulture).Date;
+            var customer = reader.GetString(1);
+            var productId = reader.IsDBNull(2) ? null : reader.GetInt64(2);
+            var product = reader.GetString(3);
+            var qty = reader.GetInt32(4);
+            var lineTotal = reader.GetInt64(5);
+            var lineProfit = reader.GetInt64(6);
+            var cost = lineTotal - lineProfit;
+
+            rows.Add(new SalesSummaryRow
+            {
+                Date = date,
+                ProductId = productId,
+                Customer = customer,
+                Product = product,
+                Qty = qty,
+                SalesAmt = lineTotal,
+                CostAmt = cost,
+                ProfitAmt = lineProfit
+            });
+        }
+
+        return rows;
+    }
 }
