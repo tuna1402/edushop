@@ -10,4 +10,6 @@ public static class AccountActionType
     public const string Update        = "UPDATE";
     public const string StatusChange  = "STATUS_CHANGE";
     public const string PasswordReset = "PASSWORD_RESET";
+    public const string AssignToOrder   = "ASSIGN_TO_ORDER";
+    public const string UnassignFromOrder = "UNASSIGN_FROM_ORDER";
 }
