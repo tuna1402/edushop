@@ -8,6 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
+using EduShop.Core.Repositories;
 using EduShop.Core.Services;
 
 namespace EduShop.WinForms;
@@ -18,6 +19,8 @@ public class MainForm : Form
     private readonly SalesService    _salesService;
     private readonly AccountService  _accountService;
     private readonly CustomerService _customerService;
+    private readonly AuditLogRepository _auditRepo;
+    private readonly AccountUsageLogRepository _usageRepo;
     private readonly UserContext     _currentUser;
     private readonly AppSettings     _appSettings;
 
@@ -79,6 +82,8 @@ public class MainForm : Form
         SalesService    salesService,
         AccountService  accountService,
         CustomerService customerService,
+        AuditLogRepository auditRepo,
+        AccountUsageLogRepository usageRepo,
         UserContext     currentUser,
         AppSettings     appSettings)
     {
@@ -86,6 +91,8 @@ public class MainForm : Form
         _salesService    = salesService;
         _accountService  = accountService;
         _customerService = customerService;
+        _auditRepo       = auditRepo;
+        _usageRepo       = usageRepo;
         _currentUser     = currentUser;
         _appSettings     = appSettings;
 
@@ -445,13 +452,17 @@ public class MainForm : Form
             (_, _) => OpenExpiringAccountList());
         var mnuStatusSummary = new ToolStripMenuItem("계정 상태별 통계(&S)...", null,
             (_, _) => OpenAccountStatusSummary());
+        var mnuLogViewer = new ToolStripMenuItem("로그/이력 조회(&L)...", null,
+            (_, _) => OpenLogViewer());
 
         _reportMenu.DropDownItems.AddRange(new ToolStripItem[]
         {
             mnuSalesReport,
             new ToolStripSeparator(),
             mnuExpiringAccounts,
-            mnuStatusSummary
+            mnuStatusSummary,
+            new ToolStripSeparator(),
+            mnuLogViewer
         });
 
         // ── 도구(T) ────────────────────────────────
@@ -524,6 +535,18 @@ public class MainForm : Form
             MessageBox.Show("설정을 저장했습니다.", "안내",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+    }
+
+    private void OpenLogViewer()
+    {
+        using var dlg = new LogViewerForm(
+            _auditRepo,
+            _usageRepo,
+            _service,
+            _customerService,
+            _accountService,
+            _currentUser);
+        dlg.ShowDialog(this);
     }
 
     // 현재 화면이 이미 상품 목록이라 포커스만 주면 됨

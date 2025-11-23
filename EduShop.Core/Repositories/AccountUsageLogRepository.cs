@@ -69,6 +69,58 @@ VALUES
         cmd.ExecuteNonQuery();
     }
 
+    public List<AccountUsageLog> GetByCreatedDateRange(DateTime from, DateTime to)
+    {
+        using var conn = Open();
+        using var cmd  = conn.CreateCommand();
+
+        cmd.CommandText = @"
+SELECT log_id,
+       account_id,
+       customer_id,
+       product_id,
+       action_type,
+       request_date,
+       expire_date,
+       description,
+       created_at,
+       created_by
+FROM   AccountUsageLog
+WHERE  created_at BETWEEN $from AND $to
+ORDER BY created_at DESC, log_id DESC;
+";
+
+        var fromText = from.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+        var toText   = to.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+        cmd.Parameters.AddWithValue("$from", fromText);
+        cmd.Parameters.AddWithValue("$to",   toText);
+
+        using var reader = cmd.ExecuteReader();
+        var list = new List<AccountUsageLog>();
+
+        while (reader.Read())
+        {
+            var log = new AccountUsageLog
+            {
+                LogId      = reader.GetInt64(0),
+                AccountId  = reader.GetInt64(1),
+                CustomerId = reader.IsDBNull(2) ? null : reader.GetInt64(2),
+                ProductId  = reader.IsDBNull(3) ? null : reader.GetInt64(3),
+                ActionType = reader.GetString(4),
+                RequestDate = ParseNullableDate(reader, 5),
+                ExpireDate  = ParseNullableDate(reader, 6),
+                Description = reader.IsDBNull(7) ? null : reader.GetString(7),
+                CreatedAt   = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture),
+                CreatedBy   = reader.IsDBNull(9) ? null : reader.GetString(9)
+            };
+
+            list.Add(log);
+        }
+
+        return list;
+    }
+
     public List<AccountUsageLog> GetForAccount(
         long accountId,
         DateTime? from = null,
