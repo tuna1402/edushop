@@ -21,6 +21,7 @@ public class AccountListForm : Form
     private readonly UserContext    _currentUser;
     private readonly bool          _expiringModeLocked;
     private bool          _expiringOnly;
+    private readonly string?       _initialStatus;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -69,14 +70,26 @@ public class AccountListForm : Form
         CustomerService customerService, 
         UserContext currentUser,
         bool expiringOnly = false
-        )
+        ): this(accountService, productService, customerService, currentUser, expiringOnly, null)
     {
-        _accountService = accountService;
-        _productService = productService;
-        _customerService = customerService;
-        _currentUser    = currentUser;
+    }
+    public AccountListForm(
+        AccountService  accountService,
+        ProductService  productService,
+        CustomerService customerService,
+        UserContext     currentUser,
+        bool            expiringOnly,
+        string?         initialStatus)
+
+    {
+        _accountService    = accountService;
+        _productService    = productService;
+        _customerService   = customerService;
+        _currentUser       = currentUser;
         _expiringModeLocked = expiringOnly;
-        _expiringOnly = expiringOnly;
+        _expiringOnly      = expiringOnly;
+        _expiringFilterOn  = expiringOnly;
+        _initialStatus     = initialStatus;
 
         Text = _expiringOnly ? "만료 예정 계정 목록" : "계정 목록";
         Width = 1100;
