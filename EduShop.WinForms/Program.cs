@@ -47,7 +47,15 @@ internal static class Program
 
             var currentUser = new UserContext { UserId = "admin", UserName = "관리자" };
 
-            Application.Run(new MainForm(productService, salesService, accountService, customerService, currentUser, appSettings));
+            Application.Run(new MainForm(
+                productService,
+                salesService,
+                accountService,
+                customerService,
+                logRepo,
+                accountLogRepo,
+                currentUser,
+                appSettings));
         }
         catch (Exception ex)
         {
