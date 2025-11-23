@@ -41,6 +41,7 @@ public class AccountListForm : Form
     private Button         _btnEdit = null!;
     private Button         _btnDetail = null!;
     private Button         _btnReuse = null!;
+    private Button         _btnExtend = null!;
     private Button         _btnCancel = null!;
     private Button         _btnClose = null!;
 
@@ -397,10 +398,20 @@ public class AccountListForm : Form
         };
         _btnReuse.Click += (_, _) => ReuseSelectedAccount();
 
+        _btnExtend = new Button
+        {
+            Text = "구독 기간 연장...",
+            Left = _btnReuse.Right + 10,
+            Top = ClientSize.Height - 45,
+            Width = 130,
+            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
+        };
+        _btnExtend.Click += (_, _) => ExtendSubscriptionSelected();
+
         _btnCancel = new Button
         {
             Text = _expiringOnly ? "만료 예정 구독 취소" : "구독 취소",
-            Left = _btnReuse.Right + 10,
+            Left = _btnExtend.Right + 10,
             Top = ClientSize.Height - 45,
             Width = 120,
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
@@ -427,6 +438,7 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("납품 처리", null, (_, _) => DeliverSelected());
         _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelectedAccounts());
+        _ctxRowMenu.Items.Add("구독 기간 연장...", null, (_, _) => ExtendSubscriptionSelected());
         _ctxRowMenu.Items.Add("계정 재사용...", null, (_, _) => ReuseSelectedAccount());
         _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
@@ -462,6 +474,7 @@ public class AccountListForm : Form
         Controls.Add(_btnEdit);
         Controls.Add(_btnDetail);
         Controls.Add(_btnReuse);
+        Controls.Add(_btnExtend);
         Controls.Add(_btnCancel);
         Controls.Add(_btnClose);
     }
@@ -809,6 +822,43 @@ public class AccountListForm : Form
         catch (Exception ex)
         {
             MessageBox.Show($"계정 재사용 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void ExtendSubscriptionSelected()
+    {
+        var selectedRows = _grid.SelectedRows;
+        if (selectedRows.Count == 0)
+        {
+            MessageBox.Show("연장할 계정을 선택하세요.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var ids = new List<long>();
+        foreach (DataGridViewRow row in selectedRows)
+        {
+            if (row.DataBoundItem is AccountRow ar)
+                ids.Add(ar.AccountId);
+        }
+
+        using var dlg = new ExtendSubscriptionForm(ids.Count);
+        if (dlg.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        var months = dlg.Months;
+        if (months <= 0)
+            return;
+
+        try
+        {
+            _accountService.ExtendSubscription(ids, months, _currentUser);
+            ReloadData();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"구독 기간 연장 중 오류: {ex.Message}", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
