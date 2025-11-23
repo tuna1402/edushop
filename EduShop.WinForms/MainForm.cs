@@ -610,8 +610,14 @@ public class MainForm : Form
 
     private void OpenSalesReport()
     {
-        var f = new QuoteForm(_service, _salesService, _currentUser, _appSettings);
-        ShowEmbeddedForm(f);
+        using var dlg = new SalesReportForm(
+            _salesService,
+            _customerService,
+            _service,
+            _appSettings,
+            _currentUser);
+
+        dlg.ShowDialog(this);
     }
 
     private void OpenExpiringAccountList()
