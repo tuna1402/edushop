@@ -322,7 +322,7 @@ WHERE  sh.sale_date >= $from
         {
             var date = DateTime.Parse(reader.GetString(0), CultureInfo.InvariantCulture).Date;
             var customer = reader.GetString(1);
-            var productId = reader.IsDBNull(2) ? null : reader.GetInt64(2);
+            var productId = reader.IsDBNull(2) ? (long?)null : reader.GetInt64(2);
             var product = reader.GetString(3);
             var qty = reader.GetInt32(4);
             var lineTotal = reader.GetInt64(5);

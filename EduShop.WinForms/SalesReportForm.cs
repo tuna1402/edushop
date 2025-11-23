@@ -266,7 +266,7 @@ public class SalesReportForm : Form
         var from = _dtpFrom.Value.Date;
         var to = _dtpTo.Value.Date;
 
-        _summaryRows = _salesService.GetSummary(from, to);
+        _summaryRows = _salesService.GetSummaryRows(from, to);
 
         long totalSales = _summaryRows.Sum(x => x.SalesAmt);
         long totalCost = _summaryRows.Sum(x => x.CostAmt);
