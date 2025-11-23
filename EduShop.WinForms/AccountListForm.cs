@@ -16,6 +16,7 @@ public class AccountListForm : Form
 {
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
+    private readonly SalesService   _salesService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
     private readonly AppSettings    _appSettings;
@@ -64,23 +65,26 @@ public class AccountListForm : Form
         public DateTime? DeliveryDate { get; set; }
         public long?    CustomerId  { get; set; }
         public long?    OrderId     { get; set; }
+        public string?  OrderCode   { get; set; }
         public string?  Memo        { get; set; }
     }
 
     public AccountListForm(
         AccountService  accountService,
         ProductService  productService,
+        SalesService    salesService,
         CustomerService customerService,
         UserContext     currentUser,
         AppSettings     appSettings,
         bool            expiringOnly = false)
-        : this(accountService, productService, customerService, currentUser, appSettings, expiringOnly, null)
+        : this(accountService, productService, salesService, customerService, currentUser, appSettings, expiringOnly, null)
     {
     }
 
     public AccountListForm(
         AccountService  accountService,
         ProductService  productService,
+        SalesService    salesService,
         CustomerService customerService,
         UserContext     currentUser,
         AppSettings     appSettings,
@@ -89,6 +93,7 @@ public class AccountListForm : Form
     {
         _accountService    = accountService;
         _productService    = productService;
+        _salesService      = salesService;
         _customerService   = customerService;
         _currentUser       = currentUser;
         _appSettings       = appSettings;
@@ -341,6 +346,12 @@ public class AccountListForm : Form
             DataPropertyName = "OrderId",
             Width = 80
         });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "주문/견적 번호",
+            DataPropertyName = "OrderCode",
+            Width = 120
+        });
 
         _grid.DoubleClick += (_, _) => ShowDetail();
         _grid.KeyDown += GridOnKeyDown;
@@ -411,6 +422,8 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add("계정 상세", null, (_, _) => ShowDetail());
         _ctxRowMenu.Items.Add("계정 수정(&E)", null, (_, _) => EditSelected());
         _ctxRowMenu.Items.Add("계정 삭제(비활성화)", null, (_, _) => DeleteSelected());
+        _ctxRowMenu.Items.Add(new ToolStripSeparator());
+        _ctxRowMenu.Items.Add("해당 주문/견적 열기(&O)", null, (_, _) => OpenOrderForSelectedAccount());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("납품 처리", null, (_, _) => DeliverSelected());
         _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelectedAccounts());
@@ -628,6 +641,7 @@ public class AccountListForm : Form
                     DeliveryDate = a.DeliveryDate,
                     CustomerId   = a.CustomerId,
                     OrderId      = a.OrderId,
+                    OrderCode    = a.OrderId?.ToString(),
                     Memo         = a.Memo
                 };
             })
@@ -693,6 +707,31 @@ public class AccountListForm : Form
         {
             ReloadData();
         }
+    }
+
+    private void OpenOrderForSelectedAccount()
+    {
+        if (_grid.CurrentRow?.DataBoundItem is not AccountRow row)
+        {
+            MessageBox.Show("계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (row.OrderId == null)
+        {
+            MessageBox.Show("연결된 주문/견적 정보가 없습니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var sale = _salesService.GetSale(row.OrderId.Value);
+        if (sale == null)
+        {
+            MessageBox.Show("해당 주문/견적을 찾을 수 없습니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dlg = new SaleDetailForm(_salesService, _accountService, sale.SaleId);
+        dlg.ShowDialog(this);
     }
 
     private void DeleteSelected()
