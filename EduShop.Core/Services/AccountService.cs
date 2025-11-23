@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
 using EduShop.Core.Repositories;
@@ -20,8 +22,16 @@ public class AccountService
     public Account? Get(long accountId) =>
         _accountRepo.GetById(accountId);
 
-    public List<AccountUsageLog> GetUsageLogs(long accountId) =>
-        _logRepo.GetForAccount(accountId);
+    public Account? GetById(long accountId) =>
+        _accountRepo.GetById(accountId);
+
+    public List<AccountUsageLog> GetUsageLogs(
+        long accountId,
+        DateTime? from = null,
+        DateTime? to = null,
+        long? customerId = null,
+        long? productId = null) =>
+        _logRepo.GetForAccount(accountId, from, to, customerId, productId);
 
     public long Create(Account acc, UserContext user)
     {
@@ -145,9 +155,24 @@ public class AccountService
         var acc = _accountRepo.GetById(accountId);
         if (acc == null) return;
 
-        if (acc.Status == AccountStatus.Canceled)
+        if (acc.Status == AccountStatus.Canceled ||
+            acc.Status == AccountStatus.ResetReady)
         {
-            throw new InvalidOperationException("이미 CANCELED 상태입니다.");
+            return;
+        }
+
+        var cancellableStatuses = new HashSet<string>
+        {
+            AccountStatus.InUse,
+            AccountStatus.Expiring,
+            AccountStatus.SubsActive,
+            AccountStatus.Delivered,
+            AccountStatus.Created
+        };
+
+        if (!cancellableStatuses.Contains(acc.Status))
+        {
+            return;
         }
 
         var oldStatus = acc.Status;
@@ -161,7 +186,7 @@ public class AccountService
             CustomerId  = acc.CustomerId,
             ProductId   = acc.ProductId,
             ActionType  = AccountActionType.Cancel,
-            RequestDate = acc.SubscriptionStartDate,
+            RequestDate = DateTime.Today,
             ExpireDate  = acc.SubscriptionEndDate,
             Description = $"구독 취소: {oldStatus} → {acc.Status}"
         }, user.UserName);
@@ -191,6 +216,98 @@ public class AccountService
             RequestDate = acc.SubscriptionStartDate,
             ExpireDate  = acc.SubscriptionEndDate,
             Description = $"재사용 준비: {oldStatus} → {acc.Status}"
+        }, user.UserName);
+    }
+
+    public void ReuseAccount(
+        long accountId,
+        long newCustomerId,
+        long newProductId,
+        DateTime newStartDate,
+        DateTime newEndDate,
+        long? newOrderId,
+        DateTime? newDeliveryDate,
+        UserContext user)
+    {
+        var acc = _accountRepo.GetById(accountId);
+        if (acc == null)
+            throw new InvalidOperationException("계정을 찾을 수 없습니다.");
+
+        if (acc.Status != AccountStatus.ResetReady)
+        {
+            throw new InvalidOperationException("RESET_READY 상태에서만 재사용할 수 있습니다.");
+        }
+
+        acc.CustomerId            = newCustomerId;
+        acc.ProductId             = newProductId;
+        acc.SubscriptionStartDate = newStartDate.Date;
+        acc.SubscriptionEndDate   = newEndDate.Date;
+        acc.OrderId               = newOrderId;
+        acc.DeliveryDate          = newDeliveryDate?.Date;
+        acc.Status                = acc.DeliveryDate.HasValue
+            ? AccountStatus.Delivered
+            : AccountStatus.SubsActive;
+
+        _accountRepo.Update(acc, user.UserName);
+
+        _logRepo.Insert(new AccountUsageLog
+        {
+            AccountId   = acc.AccountId,
+            CustomerId  = acc.CustomerId,
+            ProductId   = acc.ProductId,
+            ActionType  = AccountActionType.Reuse,
+            RequestDate = acc.SubscriptionStartDate,
+            ExpireDate  = acc.SubscriptionEndDate,
+            Description = "계정 재사용"
+        }, user.UserName);
+    }
+
+    public void UpdateAccountBasicInfo(
+        long accountId,
+        string newStatus,
+        DateTime newStartDate,
+        DateTime newEndDate,
+        DateTime? newDeliveryDate,
+        string? newMemo,
+        UserContext user)
+    {
+        var acc = _accountRepo.GetById(accountId)
+            ?? throw new InvalidOperationException("계정을 찾을 수 없습니다.");
+
+        if (newEndDate.Date < newStartDate.Date)
+            throw new InvalidOperationException("만료일은 시작일 이후여야 합니다.");
+
+        var allowedStatuses = new HashSet<string>
+        {
+            AccountStatus.Created,
+            AccountStatus.SubsActive,
+            AccountStatus.Delivered,
+            AccountStatus.InUse,
+            AccountStatus.Expiring,
+            AccountStatus.Canceled,
+            AccountStatus.ResetReady
+        };
+
+        if (!allowedStatuses.Contains(newStatus))
+            throw new InvalidOperationException("유효하지 않은 상태 코드입니다.");
+
+        acc.Status                = newStatus;
+        acc.SubscriptionStartDate = newStartDate.Date;
+        acc.SubscriptionEndDate   = newEndDate.Date;
+        acc.DeliveryDate          = newDeliveryDate?.Date;
+        acc.Memo                  = newMemo;
+
+        _accountRepo.Update(acc, user.UserName);
+
+        _logRepo.Insert(new AccountUsageLog
+        {
+            AccountId   = acc.AccountId,
+            CustomerId  = acc.CustomerId,
+            ProductId   = acc.ProductId,
+            ActionType  = AccountActionType.Update,
+            RequestDate = acc.SubscriptionStartDate,
+            ExpireDate  = acc.SubscriptionEndDate,
+            Description = "기본 정보 수정"
         }, user.UserName);
     }
     public List<Account> GetExpiring(DateTime referenceDate, int days)
