@@ -13,6 +13,7 @@ public class AccountStatusSummaryForm : Form
     private readonly ProductService   _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext      _currentUser;
+    private readonly AppSettings      _appSettings;
 
     private DataGridView _dgvSummary = null!;
     private Button       _btnOpenList = null!;
@@ -29,12 +30,14 @@ public class AccountStatusSummaryForm : Form
         AccountService  accountService,
         ProductService  productService,
         CustomerService customerService,
-        UserContext     currentUser)
+        UserContext     currentUser,
+        AppSettings     appSettings)
     {
         _accountService  = accountService;
         _productService  = productService;
         _customerService = customerService;
         _currentUser     = currentUser;
+        _appSettings     = appSettings;
 
         Text = "계정 상태별 통계";
         Width = 600;
@@ -162,6 +165,7 @@ public class AccountStatusSummaryForm : Form
             _productService,
             _customerService,
             _currentUser,
+            _appSettings,
             expiringOnly: false,
             initialStatus: row.StatusCode);
 

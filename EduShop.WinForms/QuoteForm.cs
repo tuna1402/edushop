@@ -19,6 +19,7 @@ public class QuoteForm : Form
     private readonly ProductService _service;
     private readonly SalesService _salesService;
     private readonly UserContext _currentUser;
+    private readonly AppSettings _appSettings;
     private TextBox _txtCustomer = null!;
     private TextBox _txtSchool = null!;
     private TextBox _txtContact = null!;
@@ -36,11 +37,12 @@ public class QuoteForm : Form
     private Label _lblTotalProfit = null!;
     private BindingList<QuoteItem> _items = new();
 
-    public QuoteForm(ProductService service, SalesService salesService, UserContext currentUser)
+    public QuoteForm(ProductService service, SalesService salesService, UserContext currentUser, AppSettings appSettings)
     {
         _service = service;
         _salesService = salesService;
         _currentUser = currentUser;
+        _appSettings = appSettings;
 
         Text = "견적서 작성";
         Width = 900;
@@ -324,7 +326,10 @@ public class QuoteForm : Form
         using var sfd = new SaveFileDialog
         {
             Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
-            FileName = $"quote_{DateTime.Now:yyyyMMddHHmm}.csv"
+            FileName = $"quote_{DateTime.Now:yyyyMMddHHmm}.csv",
+            InitialDirectory = string.IsNullOrEmpty(_appSettings.DefaultExportFolder)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : _appSettings.DefaultExportFolder
         };
 
         if (sfd.ShowDialog(this) != DialogResult.OK)
@@ -346,6 +351,11 @@ public class QuoteForm : Form
             writer.WriteLine($"학교명,{Escape(_txtSchool.Text)}");
             writer.WriteLine($"연락처,{Escape(_txtContact.Text)}");
             writer.WriteLine($"메모,{Escape(_txtMemo.Text)}");
+            writer.WriteLine($"회사명,{Escape(_appSettings.CompanyName)}");
+            writer.WriteLine($"담당자,{Escape(_appSettings.CompanyContact)}");
+            writer.WriteLine($"전화,{Escape(_appSettings.CompanyPhone)}");
+            writer.WriteLine($"이메일,{Escape(_appSettings.CompanyEmail)}");
+            writer.WriteLine($"주소,{Escape(_appSettings.CompanyAddress)}");
             writer.WriteLine(); // 빈 줄
 
             // 헤더
@@ -394,7 +404,10 @@ public class QuoteForm : Form
         using var sfd = new SaveFileDialog
         {
             Filter = "PDF 파일 (*.pdf)|*.pdf|모든 파일 (*.*)|*.*",
-            FileName = $"quote_{DateTime.Now:yyyyMMddHHmm}.pdf"
+            FileName = $"quote_{DateTime.Now:yyyyMMddHHmm}.pdf",
+            InitialDirectory = string.IsNullOrEmpty(_appSettings.DefaultExportFolder)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : _appSettings.DefaultExportFolder
         };
 
         if (sfd.ShowDialog(this) != DialogResult.OK)
@@ -448,6 +461,25 @@ public class QuoteForm : Form
                             {
                                 col.Item().Text($"메모: {memo}");
                             }
+
+                            col.Item().Row(row =>
+                            {
+                                row.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text($"발행 회사: {_appSettings.CompanyName}");
+                                    if (!string.IsNullOrWhiteSpace(_appSettings.CompanyContact))
+                                        c.Item().Text($"담당자: {_appSettings.CompanyContact}");
+                                });
+                                row.RelativeItem().Column(c =>
+                                {
+                                    if (!string.IsNullOrWhiteSpace(_appSettings.CompanyPhone))
+                                        c.Item().Text($"전화: {_appSettings.CompanyPhone}");
+                                    if (!string.IsNullOrWhiteSpace(_appSettings.CompanyEmail))
+                                        c.Item().Text($"이메일: {_appSettings.CompanyEmail}");
+                                    if (!string.IsNullOrWhiteSpace(_appSettings.CompanyAddress))
+                                        c.Item().Text($"주소: {_appSettings.CompanyAddress}");
+                                });
+                            });
 
                             // 품목 테이블
                             col.Item().Table(table =>
