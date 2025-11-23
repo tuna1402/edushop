@@ -730,7 +730,7 @@ public class AccountListForm : Form
             return;
         }
 
-        using var dlg = new SaleDetailForm(_salesService, _accountService, sale.SaleId);
+        using var dlg = new SaleDetailForm(_salesService, _accountService, _currentUser, sale.SaleId);
         dlg.ShowDialog(this);
     }
 

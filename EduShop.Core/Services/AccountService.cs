@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
 using EduShop.Core.Repositories;
@@ -318,4 +319,83 @@ public class AccountService
         
     public Account? GetByEmail(string email) =>
     _accountRepo.GetByEmail(email);
+
+    public List<Account> GetAssignableAccountsForOrder(long? productId, long? excludeOrderId = null)
+    {
+        var all = _accountRepo.GetAll();
+
+        var candidates = all.Where(a =>
+            (a.Status == AccountStatus.ResetReady || a.Status == AccountStatus.SubsActive)
+            && (!a.OrderId.HasValue || (excludeOrderId.HasValue && a.OrderId == excludeOrderId))
+            && (!productId.HasValue || a.ProductId == productId.Value));
+
+        return candidates
+            .OrderBy(a => a.Email)
+            .ToList();
+    }
+
+    public void AssignToOrder(long orderId, string? orderCode, long? customerId, IEnumerable<long> accountIds, UserContext user)
+    {
+        foreach (var accountId in accountIds)
+        {
+            var acc = _accountRepo.GetById(accountId);
+            if (acc == null)
+                continue;
+
+            if (acc.OrderId.HasValue && acc.OrderId != orderId)
+                continue;
+
+            acc.OrderId    = orderId;
+            acc.CustomerId = customerId ?? acc.CustomerId;
+
+            if (acc.Status == AccountStatus.ResetReady)
+            {
+                acc.Status = AccountStatus.SubsActive;
+            }
+
+            _accountRepo.Update(acc, user.UserName);
+
+            _logRepo.Insert(new AccountUsageLog
+            {
+                AccountId   = acc.AccountId,
+                CustomerId  = acc.CustomerId,
+                ProductId   = acc.ProductId,
+                ActionType  = AccountActionType.AssignToOrder,
+                RequestDate = acc.SubscriptionStartDate,
+                ExpireDate  = acc.SubscriptionEndDate,
+                Description = orderCode == null
+                    ? "주문에 계정 연결"
+                    : $"주문({orderCode})에 계정 연결"
+            }, user.UserName);
+        }
+    }
+
+    public void UnassignFromOrder(long orderId, IEnumerable<long> accountIds, UserContext user)
+    {
+        foreach (var accountId in accountIds)
+        {
+            var acc = _accountRepo.GetById(accountId);
+            if (acc == null)
+                continue;
+
+            if (!acc.OrderId.HasValue || acc.OrderId != orderId)
+                continue;
+
+            acc.OrderId = null;
+            acc.Status  = AccountStatus.ResetReady;
+
+            _accountRepo.Update(acc, user.UserName);
+
+            _logRepo.Insert(new AccountUsageLog
+            {
+                AccountId   = acc.AccountId,
+                CustomerId  = acc.CustomerId,
+                ProductId   = acc.ProductId,
+                ActionType  = AccountActionType.UnassignFromOrder,
+                RequestDate = acc.SubscriptionStartDate,
+                ExpireDate  = acc.SubscriptionEndDate,
+                Description = "주문에서 계정 해제"
+            }, user.UserName);
+        }
+    }
 }
