@@ -14,12 +14,13 @@ namespace EduShop.WinForms;
 
 public class AccountListForm : Form
 {
+    private const int ExpiringDays = 30;
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
     private readonly bool          _expiringModeLocked;
-    private readonly bool          _expiringOnly;
+    private bool          _expiringOnly;
 
     private TextBox        _txtEmail = null!;
     private ComboBox       _cboStatus = null!;
@@ -36,8 +37,6 @@ public class AccountListForm : Form
     private DataGridView   _grid = null!;
     private Button         _btnNew = null!;
     private Button         _btnEdit = null!;
-    private Button         _btnDetail = null!;
-    private Button         _btnReuse = null!;
     private Button         _btnCancel = null!;
     private Button         _btnClose = null!;
 
@@ -57,15 +56,20 @@ public class AccountListForm : Form
         public string   Status      { get; set; } = "";
         public string   StatusDisplay { get; set; } = "";
         public DateTime StartDate   { get; set; }
-        public DateTime EndDate     { get; set; }
+        public DateTime? EndDate     { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public long?    CustomerId  { get; set; }
         public long?    OrderId     { get; set; }
         public string?  Memo        { get; set; }
     }
 
-    public AccountListForm(AccountService accountService, ProductService productService, CustomerService customerService, UserContext currentUser,
-        bool expiringOnly = false)
+    public AccountListForm(
+        AccountService accountService, 
+        ProductService productService, 
+        CustomerService customerService, 
+        UserContext currentUser,
+        bool expiringOnly = false
+        )
     {
         _accountService = accountService;
         _productService = productService;
@@ -73,7 +77,6 @@ public class AccountListForm : Form
         _currentUser    = currentUser;
         _expiringModeLocked = expiringOnly;
         _expiringOnly = expiringOnly;
-        _expiringFilterOn = expiringOnly;
 
         Text = _expiringOnly ? "만료 예정 계정 목록" : "계정 목록";
         Width = 1100;
@@ -329,30 +332,10 @@ public class AccountListForm : Form
         };
         _btnEdit.Click += (_, _) => EditSelected();
 
-        _btnDetail = new Button
-        {
-            Text = "상세 보기",
-            Left = _btnEdit.Right + 10,
-            Top = ClientSize.Height - 45,
-            Width = 100,
-            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
-        };
-        _btnDetail.Click += (_, _) => ShowDetail();
-
-        _btnReuse = new Button
-        {
-            Text = "계정 재사용...",
-            Left = _btnDetail.Right + 10,
-            Top = ClientSize.Height - 45,
-            Width = 110,
-            Anchor = AnchorStyles.Left | AnchorStyles.Bottom
-        };
-        _btnReuse.Click += (_, _) => ReuseSelectedAccount();
-
         _btnCancel = new Button
         {
             Text = _expiringOnly ? "만료 예정 구독 취소" : "구독 취소",
-            Left = _btnReuse.Right + 10,
+            Left = _btnEdit.Right + 10,
             Top = ClientSize.Height - 45,
             Width = 120,
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
@@ -378,9 +361,6 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add("납품 처리", null, (_, _) => DeliverSelected());
         _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelectedAccounts());
         _ctxRowMenu.Items.Add("계정 재사용...", null, (_, _) => ReuseSelectedAccount());
-        _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
-        _ctxRowMenu.Items.Add(new ToolStripSeparator());
-        _ctxRowMenu.Items.Add("선택 계정 납품용 엑셀", null, (_, _) => ExportDeliveryCsv());
 
         _grid.ContextMenuStrip = _ctxRowMenu;
 
@@ -408,8 +388,6 @@ public class AccountListForm : Form
         Controls.Add(_grid);
         Controls.Add(_btnNew);
         Controls.Add(_btnEdit);
-        Controls.Add(_btnDetail);
-        Controls.Add(_btnReuse);
         Controls.Add(_btnCancel);
         Controls.Add(_btnClose);
     }
@@ -462,13 +440,15 @@ public class AccountListForm : Form
         _dtFrom.Value = DateTime.Today;
         _dtTo.Value = DateTime.Today;
         _expiringFilterOn = _expiringModeLocked;
-        _lblExpiringNotice.Visible = _expiringOnly;
+        _expiringOnly = _expiringModeLocked;
         ReloadData();
     }
 
     private void ReloadData()
     {
-        _currentAccounts = _accountService.GetAll();
+        _currentAccounts = _expiringOnly
+            ? _accountService.GetExpiring(DateTime.Today, ExpiringDays)
+            : _accountService.GetAll();
         ApplyFilter();
     }
 
@@ -623,11 +603,8 @@ public class AccountListForm : Form
         var acc = GetSelectedAccount();
         if (acc == null) return;
 
-        using var dlg = new AccountDetailForm(_accountService, _productService, _customerService, acc.AccountId, _currentUser);
-        if (dlg.ShowDialog(this) == DialogResult.OK)
-        {
-            ReloadData();
-        }
+        using var dlg = new AccountDetailForm(_accountService, _productService, _customerService, acc.AccountId);
+        dlg.ShowDialog(this);
     }
 
     private void DeleteSelected()
@@ -666,50 +643,6 @@ public class AccountListForm : Form
     }
 
     private void ReuseSelectedAccount()
-    {
-        var acc = GetSelectedAccount();
-        if (acc == null)
-        {
-            MessageBox.Show("재사용할 계정을 선택하세요.");
-            return;
-        }
-
-        if (!string.Equals(acc.Status, AccountStatus.ResetReady, StringComparison.OrdinalIgnoreCase))
-        {
-            MessageBox.Show("재사용 가능한 상태(RESET_READY)의 계정만 재사용할 수 있습니다.", "안내",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        using var dlg = new AccountReuseForm(_customerService, _productService);
-        if (dlg.ShowDialog(this) != DialogResult.OK)
-            return;
-
-        try
-        {
-            _accountService.ReuseAccount(
-                acc.AccountId,
-                dlg.SelectedCustomerId,
-                dlg.SelectedProductId,
-                dlg.StartDate,
-                dlg.EndDate,
-                dlg.SelectedOrderId,
-                dlg.DeliveryDate,
-                _currentUser);
-
-            MessageBox.Show("계정 재사용 처리 완료.", "완료",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-            ReloadData();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"계정 재사용 중 오류: {ex.Message}", "오류",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-    }
-
-    private void CancelSelectedAccounts()
     {
         var selected = GetSelectedAccounts();
         if (selected.Count == 0)
@@ -791,7 +724,7 @@ public class AccountListForm : Form
 
     private void ShowExpiring()
     {
-        _expiringFilterOn = true;
+        _expiringOnly = true;
         ReloadData();
     }
 
@@ -927,6 +860,60 @@ public class AccountListForm : Form
         {
             MessageBox.Show($"CSV 저장 중 오류: {ex.Message}", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void CancelSelectedAccounts()
+    {
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("구독 취소할 계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var cancellable = selected
+            .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady)
+            .ToList();
+
+        if (cancellable.Count == 0)
+        {
+            MessageBox.Show("선택된 계정은 이미 취소되었거나 재사용 준비 상태입니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"선택한 {cancellable.Count}개 계정의 구독을 취소(CANCELED) 상태로 변경하시겠습니까?",
+            "구독 취소 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (result != DialogResult.Yes)
+            return;
+
+        var errors = new List<string>();
+
+        foreach (var acc in cancellable)
+        {
+            try
+            {
+                _accountService.CancelSubscription(acc.AccountId, _currentUser);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{acc.Email}: {ex.Message}");
+            }
+
+            ReloadData();
+
+            if (errors.Count > 0)
+            {
+                MessageBox.Show("일부 계정 처리 중 오류:\n" + string.Join("\n", errors.Take(5)), "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+                MessageBox.Show("구독 취소가 완료되었습니다.", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 
