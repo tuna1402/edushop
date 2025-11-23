@@ -575,8 +575,13 @@ public class MainForm : Form
 
     private void OpenAccountStatusSummary()
     {
-        MessageBox.Show("계정 상태별 통계 화면은 추후 구현 예정입니다.", "안내",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
+        using var dlg = new AccountStatusSummaryForm(
+            _accountService,
+            _service,
+            _customerService,
+            _currentUser);
+
+        dlg.ShowDialog(this);
     }
 
     private void OpenCodeMaster()

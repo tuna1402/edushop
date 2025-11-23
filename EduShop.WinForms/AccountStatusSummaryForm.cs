@@ -124,7 +124,8 @@ public class AccountStatusSummaryForm : Form
 
         var groups = accounts
             .GroupBy(a => a.Status ?? string.Empty)
-            .OrderBy(g => g.Key);
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key);
 
         var list = new List<StatusSummaryRow>();
 
@@ -144,6 +145,11 @@ public class AccountStatusSummaryForm : Form
         }
 
         _dgvSummary.DataSource = list;
+
+        if (_dgvSummary.Rows.Count > 0)
+        {
+            _dgvSummary.Rows[0].Selected = true;
+        }
     }
 
     private void OpenAccountListForSelectedStatus()

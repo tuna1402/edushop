@@ -261,6 +261,55 @@ public class AccountService
             Description = "계정 재사용"
         }, user.UserName);
     }
+
+    public void UpdateAccountBasicInfo(
+        long accountId,
+        string newStatus,
+        DateTime newStartDate,
+        DateTime newEndDate,
+        DateTime? newDeliveryDate,
+        string? newMemo,
+        UserContext user)
+    {
+        var acc = _accountRepo.GetById(accountId)
+            ?? throw new InvalidOperationException("계정을 찾을 수 없습니다.");
+
+        if (newEndDate.Date < newStartDate.Date)
+            throw new InvalidOperationException("만료일은 시작일 이후여야 합니다.");
+
+        var allowedStatuses = new HashSet<string>
+        {
+            AccountStatus.Created,
+            AccountStatus.SubsActive,
+            AccountStatus.Delivered,
+            AccountStatus.InUse,
+            AccountStatus.Expiring,
+            AccountStatus.Canceled,
+            AccountStatus.ResetReady
+        };
+
+        if (!allowedStatuses.Contains(newStatus))
+            throw new InvalidOperationException("유효하지 않은 상태 코드입니다.");
+
+        acc.Status                = newStatus;
+        acc.SubscriptionStartDate = newStartDate.Date;
+        acc.SubscriptionEndDate   = newEndDate.Date;
+        acc.DeliveryDate          = newDeliveryDate?.Date;
+        acc.Memo                  = newMemo;
+
+        _accountRepo.Update(acc, user.UserName);
+
+        _logRepo.Insert(new AccountUsageLog
+        {
+            AccountId   = acc.AccountId,
+            CustomerId  = acc.CustomerId,
+            ProductId   = acc.ProductId,
+            ActionType  = AccountActionType.Update,
+            RequestDate = acc.SubscriptionStartDate,
+            ExpireDate  = acc.SubscriptionEndDate,
+            Description = "기본 정보 수정"
+        }, user.UserName);
+    }
     public List<Account> GetExpiring(DateTime referenceDate, int days)
         => _accountRepo.GetExpiring(referenceDate, days);
         

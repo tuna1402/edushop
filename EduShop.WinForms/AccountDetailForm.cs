@@ -13,17 +13,20 @@ public class AccountDetailForm : Form
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
     private readonly CustomerService _customerService;
+    private readonly UserContext _currentUser;
     private readonly long _accountId;
 
     private TextBox _txtEmail = null!;
-    private TextBox _txtStatus = null!;
+    private ComboBox _cboStatus = null!;
     private TextBox _txtProduct = null!;
     private TextBox _txtCustomer = null!;
-    private TextBox _txtStartDate = null!;
-    private TextBox _txtEndDate = null!;
-    private TextBox _txtDeliveryDate = null!;
+    private DateTimePicker _dtStart = null!;
+    private DateTimePicker _dtEnd = null!;
+    private DateTimePicker _dtDelivery = null!;
     private TextBox _txtOrder = null!;
     private TextBox _txtMemo = null!;
+    private Button _btnSave = null!;
+    private Button _btnClose = null!;
 
     private DataGridView _gridLogs = null!;
     private DateTimePicker _dtLogFrom = null!;
@@ -47,12 +50,13 @@ public class AccountDetailForm : Form
         public string? CreatedBy { get; set; }
     }
 
-    public AccountDetailForm(AccountService accountService, ProductService productService, CustomerService customerService, long accountId)
+    public AccountDetailForm(AccountService accountService, ProductService productService, CustomerService customerService, long accountId, UserContext currentUser)
     {
         _accountService  = accountService;
         _productService  = productService;
         _customerService = customerService;
         _accountId       = accountId;
+        _currentUser     = currentUser;
 
         Text = "계정 상세";
         Width = 900;
@@ -105,24 +109,83 @@ public class AccountDetailForm : Form
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
         _txtEmail = CreateReadOnlyTextBox();
-        _txtStatus = CreateReadOnlyTextBox();
+        _cboStatus = new ComboBox
+        {
+            Dock = DockStyle.Fill,
+            DropDownStyle = ComboBoxStyle.DropDownList
+        };
+        _cboStatus.DisplayMember = "Display";
+        _cboStatus.ValueMember   = "Code";
+        _cboStatus.DataSource    = AccountStatusHelper.GetAll().Select(x => new { x.Code, x.Display }).ToList();
+
         _txtProduct = CreateReadOnlyTextBox();
         _txtCustomer = CreateReadOnlyTextBox();
-        _txtStartDate = CreateReadOnlyTextBox();
-        _txtEndDate = CreateReadOnlyTextBox();
-        _txtDeliveryDate = CreateReadOnlyTextBox();
+
+        _dtStart = new DateTimePicker
+        {
+            Dock = DockStyle.Left,
+            Format = DateTimePickerFormat.Short,
+            Width = 140
+        };
+
+        _dtEnd = new DateTimePicker
+        {
+            Dock = DockStyle.Left,
+            Format = DateTimePickerFormat.Short,
+            Width = 140
+        };
+
+        _dtDelivery = new DateTimePicker
+        {
+            Dock = DockStyle.Left,
+            Format = DateTimePickerFormat.Short,
+            Width = 140,
+            ShowCheckBox = true
+        };
+
         _txtOrder = CreateReadOnlyTextBox();
-        _txtMemo = CreateReadOnlyTextBox(multiline: true, height: 80);
+        _txtMemo = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Multiline = true,
+            Height = 80,
+            ScrollBars = ScrollBars.Vertical
+        };
 
         AddRow(table, "이메일", _txtEmail);
-        AddRow(table, "상태", _txtStatus);
+        AddRow(table, "상태", _cboStatus);
         AddRow(table, "상품", _txtProduct);
         AddRow(table, "고객", _txtCustomer);
-        AddRow(table, "구독 시작일", _txtStartDate);
-        AddRow(table, "구독 만료일", _txtEndDate);
-        AddRow(table, "납품일", _txtDeliveryDate);
+        AddRow(table, "구독 시작일", _dtStart);
+        AddRow(table, "구독 만료일", _dtEnd);
+        AddRow(table, "납품일", _dtDelivery);
         AddRow(table, "주문번호", _txtOrder);
         AddRow(table, "메모", _txtMemo);
+
+        var buttonRow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            AutoSize = true
+        };
+
+        _btnSave = new Button
+        {
+            Text = "저장",
+            Width = 90
+        };
+        _btnSave.Click += (_, _) => ValidateAndSave();
+
+        _btnClose = new Button
+        {
+            Text = "닫기",
+            Width = 90
+        };
+        _btnClose.Click += (_, _) => Close();
+
+        buttonRow.Controls.Add(_btnSave);
+        buttonRow.Controls.Add(_btnClose);
+        AddRow(table, string.Empty, buttonRow);
 
         return table;
     }
@@ -284,12 +347,21 @@ public class AccountDetailForm : Form
         Text = $"계정 상세 - {acc.Email}";
 
         _txtEmail.Text = acc.Email;
-        _txtStatus.Text = acc.Status;
+        _cboStatus.SelectedValue = acc.Status;
         _txtProduct.Text = GetProductName(acc.ProductId);
         _txtCustomer.Text = acc.CustomerId.HasValue ? GetCustomerName(acc.CustomerId.Value) : "";
-        _txtStartDate.Text = acc.SubscriptionStartDate.ToString("yyyy-MM-dd");
-        _txtEndDate.Text = acc.SubscriptionEndDate.ToString("yyyy-MM-dd");
-        _txtDeliveryDate.Text = acc.DeliveryDate?.ToString("yyyy-MM-dd") ?? "";
+        _dtStart.Value = acc.SubscriptionStartDate;
+        _dtEnd.Value = acc.SubscriptionEndDate;
+        if (acc.DeliveryDate.HasValue)
+        {
+            _dtDelivery.Value = acc.DeliveryDate.Value;
+            _dtDelivery.Checked = true;
+        }
+        else
+        {
+            _dtDelivery.Checked = false;
+        }
+
         _txtOrder.Text = acc.OrderId?.ToString() ?? "";
         _txtMemo.Text = acc.Memo ?? "";
     }
@@ -328,6 +400,48 @@ public class AccountDetailForm : Form
             .ToList();
 
         _gridLogs.DataSource = rows;
+    }
+
+    private void ValidateAndSave()
+    {
+        var status = _cboStatus.SelectedValue as string;
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            MessageBox.Show("상태를 선택해 주세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var startDate = _dtStart.Value.Date;
+        var endDate   = _dtEnd.Value.Date;
+
+        if (endDate < startDate)
+        {
+            MessageBox.Show("만료일은 시작일 이후여야 합니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        DateTime? deliveryDate = _dtDelivery.Checked ? _dtDelivery.Value.Date : null;
+        var memo = _txtMemo.Text;
+
+        try
+        {
+            _accountService.UpdateAccountBasicInfo(
+                _accountId,
+                status,
+                startDate,
+                endDate,
+                deliveryDate,
+                memo,
+                _currentUser);
+
+            MessageBox.Show("저장 완료", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"저장 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private static TextBox CreateReadOnlyTextBox(bool multiline = false, int height = 25)
