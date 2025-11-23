@@ -125,7 +125,10 @@ public class AccountListForm : Form
         _cboStatus.DisplayMember = "Display";
         _cboStatus.ValueMember   = "Code";
         _cboStatus.DataSource    = AccountStatusHelper.GetAllWithEmpty().Select(x => new { x.Code, x.Display }).ToList();
-        _cboStatus.SelectedIndex = 0;
+        if (_cboStatus.Items.Count > 0)
+        {
+            _cboStatus.SelectedIndex = 0;
+        }
 
         var lblProduct = new Label
         {
@@ -337,7 +340,7 @@ public class AccountListForm : Form
             Width = 120,
             Anchor = AnchorStyles.Left | AnchorStyles.Bottom
         };
-        _btnCancel.Click += (_, _) => CancelSelected();
+        _btnCancel.Click += (_, _) => CancelSelectedAccounts();
 
         _btnClose = new Button
         {
@@ -356,10 +359,8 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add("계정 삭제(비활성화)", null, (_, _) => DeleteSelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("납품 처리", null, (_, _) => DeliverSelected());
-        _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelected());
-        _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
-        _ctxRowMenu.Items.Add(new ToolStripSeparator());
-        _ctxRowMenu.Items.Add("선택 계정 납품용 엑셀", null, (_, _) => ExportDeliveryCsv());
+        _ctxRowMenu.Items.Add(_expiringOnly ? "만료 예정 구독 취소" : "구독 취소", null, (_, _) => CancelSelectedAccounts());
+        _ctxRowMenu.Items.Add("계정 재사용...", null, (_, _) => ReuseSelectedAccount());
 
         _grid.ContextMenuStrip = _ctxRowMenu;
 
@@ -859,6 +860,60 @@ public class AccountListForm : Form
         {
             MessageBox.Show($"CSV 저장 중 오류: {ex.Message}", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void CancelSelectedAccounts()
+    {
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("구독 취소할 계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var cancellable = selected
+            .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady)
+            .ToList();
+
+        if (cancellable.Count == 0)
+        {
+            MessageBox.Show("선택된 계정은 이미 취소되었거나 재사용 준비 상태입니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"선택한 {cancellable.Count}개 계정의 구독을 취소(CANCELED) 상태로 변경하시겠습니까?",
+            "구독 취소 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (result != DialogResult.Yes)
+            return;
+
+        var errors = new List<string>();
+
+        foreach (var acc in cancellable)
+        {
+            try
+            {
+                _accountService.CancelSubscription(acc.AccountId, _currentUser);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{acc.Email}: {ex.Message}");
+            }
+
+            ReloadData();
+
+            if (errors.Count > 0)
+            {
+                MessageBox.Show("일부 계정 처리 중 오류:\n" + string.Join("\n", errors.Take(5)), "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+                MessageBox.Show("구독 취소가 완료되었습니다.", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 
