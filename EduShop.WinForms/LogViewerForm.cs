@@ -6,6 +6,7 @@ using System.Windows.Forms;
 using EduShop.Core.Models;
 using EduShop.Core.Repositories;
 using EduShop.Core.Services;
+using EduShop.Core.Common;
 
 namespace EduShop.WinForms;
 
