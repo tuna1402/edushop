@@ -11,6 +11,7 @@ public class AccountService
 {
     private readonly AccountRepository _accountRepo;
     private readonly AccountUsageLogRepository _logRepo;
+    private const int DefaultSubscriptionMonths = 1;
     public AccountService(AccountRepository accountRepo, AccountUsageLogRepository logRepo)
     {
         _accountRepo = accountRepo;
@@ -348,6 +349,13 @@ public class AccountService
             acc.OrderId    = orderId;
             acc.CustomerId = customerId ?? acc.CustomerId;
 
+            if (acc.SubscriptionStartDate == default || acc.SubscriptionEndDate == default)
+            {
+                var (start, end) = GetDefaultSubscriptionPeriod();
+                acc.SubscriptionStartDate = start;
+                acc.SubscriptionEndDate   = end;
+            }
+
             if (acc.Status == AccountStatus.ResetReady)
             {
                 acc.Status = AccountStatus.SubsActive;
@@ -397,5 +405,58 @@ public class AccountService
                 Description = "주문에서 계정 해제"
             }, user.UserName);
         }
+    }
+
+    public void ExtendSubscription(long accountId, int months, UserContext user)
+    {
+        if (months <= 0)
+            return;
+
+        var acc = _accountRepo.GetById(accountId);
+        if (acc == null)
+            return;
+
+        var today    = DateTime.Today;
+        var baseDate = acc.SubscriptionEndDate.Date > today
+            ? acc.SubscriptionEndDate.Date
+            : today;
+
+        if (acc.SubscriptionStartDate == default)
+            acc.SubscriptionStartDate = baseDate;
+
+        acc.SubscriptionEndDate = baseDate.AddMonths(months).AddDays(-1);
+
+        if (acc.Status == AccountStatus.Expiring || acc.Status == AccountStatus.Canceled)
+        {
+            acc.Status = AccountStatus.InUse;
+        }
+
+        _accountRepo.Update(acc, user.UserName);
+
+        _logRepo.Insert(new AccountUsageLog
+        {
+            AccountId   = acc.AccountId,
+            CustomerId  = acc.CustomerId,
+            ProductId   = acc.ProductId,
+            ActionType  = AccountActionType.Renew,
+            RequestDate = acc.SubscriptionStartDate,
+            ExpireDate  = acc.SubscriptionEndDate,
+            Description = $"구독 기간 연장(+{months}개월)"
+        }, user.UserName);
+    }
+
+    public void ExtendSubscription(IEnumerable<long> accountIds, int months, UserContext user)
+    {
+        foreach (var id in accountIds)
+        {
+            ExtendSubscription(id, months, user);
+        }
+    }
+
+    private (DateTime Start, DateTime End) GetDefaultSubscriptionPeriod()
+    {
+        var start = DateTime.Today;
+        var end   = start.AddMonths(DefaultSubscriptionMonths).AddDays(-1);
+        return (start, end);
     }
 }
