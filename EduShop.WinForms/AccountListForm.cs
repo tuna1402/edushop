@@ -46,8 +46,9 @@ public class AccountListForm : Form
     private ContextMenuStrip _ctxRowMenu = null!;
     private ContextMenuStrip _ctxMoreMenu = null!;
 
-    private List<Product> _products = new();
-    private List<Account> _currentAccounts = new();
+    private List<Product>  _products = new();
+    private List<Customer> _customers = new();
+    private List<Account>  _currentAccounts = new();
     private bool          _expiringFilterOn = false;
     private Label         _lblExpiringNotice = null!;
 
@@ -239,10 +240,10 @@ public class AccountListForm : Form
 
         _btnExportCsv = new Button
         {
-            Text = "엑셀 다운로드",
+            Text = "엑셀 다운로드(계정 CSV Export)",
             Left = _btnReset.Right + 10,
             Top = 40,
-            Width = 110
+            Width = 190
         };
         _btnExportCsv.Click += (_, _) => ExportAccountsCsv();
 
@@ -413,6 +414,7 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add("계정 재사용...", null, (_, _) => ReuseSelectedAccount());
         _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
+        _ctxRowMenu.Items.Add("선택 계정만 엑셀 다운로드", null, (_, _) => ExportAccountsCsv(true));
         _ctxRowMenu.Items.Add("선택 계정 납품용 엑셀", null, (_, _) => ExportDeliveryCsv());
 
         _grid.ContextMenuStrip = _ctxRowMenu;
@@ -420,7 +422,8 @@ public class AccountListForm : Form
         // "더보기" 메뉴
         _ctxMoreMenu = new ContextMenuStrip();
         _ctxMoreMenu.Items.Add($"만료 예정({AppSettingsManager.Current.ExpiringDays}일) 보기", null, (_, _) => ShowExpiring());
-        _ctxMoreMenu.Items.Add("엑셀 등록 (Import)", null, (_, _) => ImportAccountsCsv());
+        _ctxMoreMenu.Items.Add("엑셀 다운로드(계정 CSV Export)", null, (_, _) => ExportAccountsCsv());
+        _ctxMoreMenu.Items.Add("엑셀 업로드(계정 CSV Import)", null, (_, _) => ImportAccountsCsv());
 
         Controls.Add(lblEmail);
         Controls.Add(_txtEmail);
@@ -474,6 +477,7 @@ public class AccountListForm : Form
     private void LoadProducts()
     {
         _products = _productService.GetAll();
+        _customers = _customerService.GetAll();
 
         _cboProduct.Items.Clear();
         _cboProduct.Items.Add(""); // 전체
@@ -913,14 +917,40 @@ public class AccountListForm : Form
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
-    private void ExportAccountsCsv()
+    private void ExportAccountsCsv(bool onlySelected = false)
     {
-        if (_grid.DataSource is not List<AccountRow> rows || rows.Count == 0)
+        List<AccountRow> targetRows;
+
+        if (onlySelected && _grid.SelectedRows.Count > 0)
+        {
+            targetRows = new List<AccountRow>();
+            foreach (DataGridViewRow r in _grid.SelectedRows)
+            {
+                if (r.DataBoundItem is AccountRow ar)
+                    targetRows.Add(ar);
+            }
+        }
+        else
+        {
+            if (_grid.DataSource is not List<AccountRow> rows || rows.Count == 0)
+            {
+                MessageBox.Show("내보낼 계정 데이터가 없습니다.", "안내",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            targetRows = rows;
+        }
+
+        if (targetRows.Count == 0)
         {
             MessageBox.Show("내보낼 계정 데이터가 없습니다.", "안내",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
+
+        var productDict = _products.ToDictionary(p => p.ProductId, p => p);
+        var customerDict = _customers.ToDictionary(c => c.CustomerId, c => c);
 
         using var sfd = new SaveFileDialog
         {
@@ -941,38 +971,37 @@ public class AccountListForm : Form
             writer.WriteLine(string.Join(",",
                 "Email",
                 "ProductCode",
-                "StartDate",
-                "EndDate",
+                "CustomerName",
+                "SubscriptionStartDate",
+                "SubscriptionEndDate",
                 "Status",
-                "CustomerId",
-                "OrderId",
+                "OrderCode",
                 "DeliveryDate",
-                "LastPaymentDate",
                 "Memo"));
 
-            foreach (var row in rows)
+            foreach (var row in targetRows)
             {
                 var acc = _currentAccounts.FirstOrDefault(a => a.AccountId == row.AccountId);
                 if (acc == null) continue;
 
-                var product = _products.FirstOrDefault(p => p.ProductId == acc.ProductId);
-                var productCode = product?.ProductCode ?? acc.ProductId.ToString(CultureInfo.InvariantCulture);
+                var productCode = productDict.TryGetValue(acc.ProductId, out var product)
+                    ? product.ProductCode
+                    : acc.ProductId.ToString(CultureInfo.InvariantCulture);
 
-                string startDate = acc.SubscriptionStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                string endDate   = acc.SubscriptionEndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                string delivery  = acc.DeliveryDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
-                string lastPay   = acc.LastPaymentDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
+                var customerName = acc.CustomerId.HasValue &&
+                                   customerDict.TryGetValue(acc.CustomerId.Value, out var customer)
+                    ? customer.CustomerName
+                    : "";
 
                 var line = string.Join(",",
                     EscapeCsv(acc.Email),
                     EscapeCsv(productCode),
-                    EscapeCsv(startDate),
-                    EscapeCsv(endDate),
+                    EscapeCsv(customerName),
+                    EscapeCsv(acc.SubscriptionStartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+                    EscapeCsv(acc.SubscriptionEndDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
                     EscapeCsv(acc.Status),
-                    EscapeCsv(acc.CustomerId?.ToString(CultureInfo.InvariantCulture) ?? ""),
                     EscapeCsv(acc.OrderId?.ToString(CultureInfo.InvariantCulture) ?? ""),
-                    EscapeCsv(delivery),
-                    EscapeCsv(lastPay),
+                    EscapeCsv(acc.DeliveryDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? ""),
                     EscapeCsv(acc.Memo ?? ""));
 
                 writer.WriteLine(line);
@@ -987,6 +1016,7 @@ public class AccountListForm : Form
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
+
     private void ImportAccountsCsv()
     {
         using var ofd = new OpenFileDialog
@@ -1014,7 +1044,7 @@ public class AccountListForm : Form
             }
 
             var headerCols = SplitCsvLine(header);
-            if (headerCols.Count < 4 || !headerCols[0].Equals("Email", StringComparison.OrdinalIgnoreCase))
+            if (headerCols.Count == 0 || !headerCols[0].Equals("Email", StringComparison.OrdinalIgnoreCase))
             {
                 MessageBox.Show("헤더 형식이 예상과 다릅니다. (첫 컬럼은 Email이어야 합니다.)", "오류",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1023,7 +1053,13 @@ public class AccountListForm : Form
 
             int lineNo = 1;
 
-            _products = _productService.GetAll();
+            var products = _productService.GetAll();
+            var productDict = products.ToDictionary(p => p.ProductCode, StringComparer.OrdinalIgnoreCase);
+            var customers = _customerService.GetAll();
+            var customerDict = customers.ToDictionary(c => c.CustomerName, StringComparer.OrdinalIgnoreCase);
+            var accountDict = _accountService
+                .GetAll()
+                .ToDictionary(a => a.Email, StringComparer.OrdinalIgnoreCase);
 
             while (!reader.EndOfStream)
             {
@@ -1033,114 +1069,85 @@ public class AccountListForm : Form
                     continue;
 
                 var cols = SplitCsvLine(line);
-                if (cols.Count < 4)
+
+                string email       = cols.ElementAtOrDefault(0)?.Trim() ?? "";
+                string productCode = cols.ElementAtOrDefault(1)?.Trim() ?? "";
+                string customerNm  = cols.ElementAtOrDefault(2)?.Trim() ?? "";
+                string startStr    = cols.ElementAtOrDefault(3)?.Trim() ?? "";
+                string endStr      = cols.ElementAtOrDefault(4)?.Trim() ?? "";
+                string statusStr   = cols.ElementAtOrDefault(5)?.Trim() ?? "";
+                string orderCode   = cols.ElementAtOrDefault(6)?.Trim() ?? "";
+                string deliveryStr = cols.ElementAtOrDefault(7)?.Trim() ?? "";
+                string memo        = cols.ElementAtOrDefault(8) ?? "";
+
+                if (string.IsNullOrWhiteSpace(email) ||
+                    string.IsNullOrWhiteSpace(productCode) ||
+                    string.IsNullOrWhiteSpace(customerNm) ||
+                    string.IsNullOrWhiteSpace(startStr) ||
+                    string.IsNullOrWhiteSpace(endStr))
                 {
-                    errors.Add($"라인 {lineNo}: 열 개수가 부족합니다.");
+                    errors.Add($"라인 {lineNo}: 필수 값(Email, ProductCode, CustomerName, 시작/만료일) 중 일부가 비어 있습니다.");
                     skipped++;
                     continue;
                 }
 
-                string email       = cols[0].Trim();
-                string productCode = cols.Count > 1 ? cols[1].Trim() : "";
-                string startStr    = cols.Count > 2 ? cols[2].Trim() : "";
-                string endStr      = cols.Count > 3 ? cols[3].Trim() : "";
-                string statusStr   = cols.Count > 4 ? cols[4].Trim() : "";
-                string customerStr = cols.Count > 5 ? cols[5].Trim() : "";
-                string orderStr    = cols.Count > 6 ? cols[6].Trim() : "";
-                string deliveryStr = cols.Count > 7 ? cols[7].Trim() : "";
-                string lastPayStr  = cols.Count > 8 ? cols[8].Trim() : "";
-                string memo        = cols.Count > 9 ? cols[9] : "";
-
-                if (string.IsNullOrEmpty(email))
-                {
-                    errors.Add($"라인 {lineNo}: Email이 비어 있습니다.");
-                    skipped++;
-                    continue;
-                }
-
-                var product = _products.FirstOrDefault(p =>
-                    p.ProductCode.Equals(productCode, StringComparison.OrdinalIgnoreCase));
-
-                if (product == null)
+                if (!productDict.TryGetValue(productCode, out var product))
                 {
                     errors.Add($"라인 {lineNo}: 알 수 없는 ProductCode [{productCode}].");
                     skipped++;
                     continue;
                 }
 
-                if (!DateTime.TryParseExact(startStr, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                        DateTimeStyles.None, out var startDate))
+                if (!customerDict.TryGetValue(customerNm, out var customer))
+                {
+                    errors.Add($"라인 {lineNo}: 알 수 없는 CustomerName [{customerNm}].");
+                    skipped++;
+                    continue;
+                }
+
+                if (!DateTime.TryParse(startStr, out var startDate))
                 {
                     errors.Add($"라인 {lineNo}: 시작일 형식이 잘못되었습니다. (값: {startStr})");
                     skipped++;
                     continue;
                 }
 
-                if (!DateTime.TryParseExact(endStr, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                        DateTimeStyles.None, out var endDate))
+                if (!DateTime.TryParse(endStr, out var endDate))
                 {
                     errors.Add($"라인 {lineNo}: 만료일 형식이 잘못되었습니다. (값: {endStr})");
                     skipped++;
                     continue;
                 }
 
-                string status;
-                if (string.IsNullOrWhiteSpace(statusStr))
+                var allowedStatuses = new[]
                 {
-                    status = AccountStatus.SubsActive;
-                }
-                else
+                    AccountStatus.Created,
+                    AccountStatus.SubsActive,
+                    AccountStatus.Delivered,
+                    AccountStatus.InUse,
+                    AccountStatus.Expiring,
+                    AccountStatus.Canceled,
+                    AccountStatus.ResetReady
+                };
+
+                string status = string.IsNullOrWhiteSpace(statusStr)
+                    ? AccountStatus.SubsActive
+                    : statusStr;
+
+                if (!allowedStatuses.Contains(status, StringComparer.OrdinalIgnoreCase))
                 {
-                    var allowed = new[]
-                    {
-                        AccountStatus.Created,
-                        AccountStatus.SubsActive,
-                        AccountStatus.Delivered,
-                        AccountStatus.InUse,
-                        AccountStatus.Expiring,
-                        AccountStatus.Canceled,
-                        AccountStatus.ResetReady
-                    };
-
-                    if (!allowed.Contains(statusStr))
-                    {
-                        errors.Add($"라인 {lineNo}: 알 수 없는 상태 값 [{statusStr}].");
-                        skipped++;
-                        continue;
-                    }
-
-                    status = statusStr;
+                    errors.Add($"라인 {lineNo}: 알 수 없는 상태 값 [{statusStr}].");
+                    skipped++;
+                    continue;
                 }
 
-                long? customerId = null;
-                if (!string.IsNullOrEmpty(customerStr))
-                {
-                    if (!long.TryParse(customerStr, out var cid))
-                    {
-                        errors.Add($"라인 {lineNo}: CustomerId가 숫자가 아닙니다. (값: {customerStr})");
-                        skipped++;
-                        continue;
-                    }
-                    customerId = cid;
-                }
-
-                long? orderId = null;
-                if (!string.IsNullOrEmpty(orderStr))
-                {
-                    if (!long.TryParse(orderStr, out var oid))
-                    {
-                        errors.Add($"라인 {lineNo}: OrderId가 숫자가 아닙니다. (값: {orderStr})");
-                        skipped++;
-                        continue;
-                    }
-                    orderId = oid;
-                }
+                status = allowedStatuses
+                    .First(s => s.Equals(status, StringComparison.OrdinalIgnoreCase));
 
                 DateTime? deliveryDate = null;
-                if (!string.IsNullOrEmpty(deliveryStr))
+                if (!string.IsNullOrWhiteSpace(deliveryStr))
                 {
-                    if (!DateTime.TryParseExact(deliveryStr, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                            DateTimeStyles.None, out var d))
+                    if (!DateTime.TryParse(deliveryStr, out var d))
                     {
                         errors.Add($"라인 {lineNo}: DeliveryDate 형식 오류. (값: {deliveryStr})");
                         skipped++;
@@ -1149,53 +1156,54 @@ public class AccountListForm : Form
                     deliveryDate = d;
                 }
 
-                DateTime? lastPayDate = null;
-                if (!string.IsNullOrEmpty(lastPayStr))
+                long? orderId = null;
+                var finalMemo = memo;
+                if (!string.IsNullOrWhiteSpace(orderCode))
                 {
-                    if (!DateTime.TryParseExact(lastPayStr, "yyyy-MM-dd", CultureInfo.InvariantCulture,
-                            DateTimeStyles.None, out var d))
+                    if (long.TryParse(orderCode, out var oid))
                     {
-                        errors.Add($"라인 {lineNo}: LastPaymentDate 형식 오류. (값: {lastPayStr})");
-                        skipped++;
-                        continue;
+                        orderId = oid;
                     }
-                    lastPayDate = d;
+                    else
+                    {
+                        finalMemo = string.IsNullOrWhiteSpace(finalMemo)
+                            ? $"OrderCode:{orderCode}"
+                            : $"{finalMemo} (OrderCode:{orderCode})";
+                    }
                 }
 
                 try
                 {
-                    var existing = _accountService.GetByEmail(email);
-
-                    if (existing == null)
+                    if (!accountDict.TryGetValue(email, out var existing))
                     {
                         var acc = new Account
                         {
                             Email                 = email,
                             ProductId             = product.ProductId,
-                            SubscriptionStartDate = startDate,
-                            SubscriptionEndDate   = endDate,
+                            CustomerId            = customer.CustomerId,
+                            SubscriptionStartDate = startDate.Date,
+                            SubscriptionEndDate   = endDate.Date,
                             Status                = status,
-                            CustomerId            = customerId,
                             OrderId               = orderId,
-                            DeliveryDate          = deliveryDate,
-                            LastPaymentDate       = lastPayDate,
-                            Memo                  = memo
+                            DeliveryDate          = deliveryDate?.Date,
+                            Memo                  = finalMemo
                         };
 
-                        _accountService.Create(acc, _currentUser);
+                        var newId = _accountService.Create(acc, _currentUser);
+                        acc.AccountId = newId;
+                        accountDict[email] = acc;
                         created++;
                     }
                     else
                     {
                         existing.ProductId             = product.ProductId;
-                        existing.SubscriptionStartDate = startDate;
-                        existing.SubscriptionEndDate   = endDate;
+                        existing.CustomerId            = customer.CustomerId;
+                        existing.SubscriptionStartDate = startDate.Date;
+                        existing.SubscriptionEndDate   = endDate.Date;
                         existing.Status                = status;
-                        existing.CustomerId            = customerId;
                         existing.OrderId               = orderId;
-                        existing.DeliveryDate          = deliveryDate;
-                        existing.LastPaymentDate       = lastPayDate;
-                        existing.Memo                  = memo;
+                        existing.DeliveryDate          = deliveryDate?.Date;
+                        existing.Memo                  = finalMemo;
 
                         _accountService.Update(existing, _currentUser);
                         updated++;
@@ -1210,7 +1218,7 @@ public class AccountListForm : Form
 
             ReloadData();
 
-            var msg = $"Import 완료:\n" +
+            var msg = $"계정 Import 완료:\n" +
                       $"- 신규 등록: {created}건\n" +
                       $"- 수정: {updated}건\n" +
                       $"- 건너뜀: {skipped}건";
