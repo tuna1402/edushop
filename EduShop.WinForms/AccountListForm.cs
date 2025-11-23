@@ -434,7 +434,25 @@ public class AccountListForm : Form
     private void ResetFilters()
     {
         _txtEmail.Text = "";
-        _cboStatus.SelectedIndex = 0;
+        if (!string.IsNullOrEmpty(_initialStatus) && _cboStatus.Items.Count > 0)
+        {
+            var found = AccountStatusHelper
+                .GetAllWithEmpty()
+                .Any(x => string.Equals(x.Code, _initialStatus, StringComparison.OrdinalIgnoreCase));
+
+            if (found)
+            {
+                _cboStatus.SelectedValue = _initialStatus;
+            }
+            else
+            {
+                _cboStatus.SelectedIndex = 0;
+            }
+        }
+        else
+        {
+            _cboStatus.SelectedIndex = 0;
+        }
         _cboProduct.SelectedIndex = 0;
         _chkUseDate.Checked = false;
         _dtFrom.Value = DateTime.Today;
