@@ -14,6 +14,7 @@ namespace EduShop.WinForms;
 
 public class AccountListForm : Form
 {
+    private const int ExpiringDays = 30;
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
@@ -58,7 +59,7 @@ public class AccountListForm : Form
         public string   Status      { get; set; } = "";
         public string   StatusDisplay { get; set; } = "";
         public DateTime StartDate   { get; set; }
-        public DateTime EndDate     { get; set; }
+        public DateTime? EndDate     { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public long?    CustomerId  { get; set; }
         public long?    OrderId     { get; set; }
@@ -518,7 +519,9 @@ public class AccountListForm : Form
 
     private void ReloadData()
     {
-        _currentAccounts = _accountService.GetAll();
+        _currentAccounts = _expiringOnly
+            ? _accountService.GetExpiring(DateTime.Today, ExpiringDays)
+            : _accountService.GetAll();
         ApplyFilter();
     }
 
@@ -982,6 +985,60 @@ public class AccountListForm : Form
         {
             MessageBox.Show($"CSV 저장 중 오류: {ex.Message}", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void CancelSelectedAccounts()
+    {
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("구독 취소할 계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var cancellable = selected
+            .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady)
+            .ToList();
+
+        if (cancellable.Count == 0)
+        {
+            MessageBox.Show("선택된 계정은 이미 취소되었거나 재사용 준비 상태입니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"선택한 {cancellable.Count}개 계정의 구독을 취소(CANCELED) 상태로 변경하시겠습니까?",
+            "구독 취소 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (result != DialogResult.Yes)
+            return;
+
+        var errors = new List<string>();
+
+        foreach (var acc in cancellable)
+        {
+            try
+            {
+                _accountService.CancelSubscription(acc.AccountId, _currentUser);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{acc.Email}: {ex.Message}");
+            }
+
+            ReloadData();
+
+            if (errors.Count > 0)
+            {
+                MessageBox.Show("일부 계정 처리 중 오류:\n" + string.Join("\n", errors.Take(5)), "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+                MessageBox.Show("구독 취소가 완료되었습니다.", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 

@@ -17,6 +17,7 @@ internal static class Program
         try
         {
             ApplicationConfiguration.Initialize();
+            AppSettingsManager.Load();
             QuestPDF.Settings.License = LicenseType.Community;
 
             // 1) Windows 로컬 경로: %LOCALAPPDATA%\EduShop\edushop_winforms.db
