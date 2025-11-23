@@ -11,6 +11,7 @@ public class AccountStatusSummaryForm : Form
 {
     private readonly AccountService   _accountService;
     private readonly ProductService   _productService;
+    private readonly SalesService     _salesService;
     private readonly CustomerService  _customerService;
     private readonly UserContext      _currentUser;
     private readonly AppSettings      _appSettings;
@@ -29,12 +30,14 @@ public class AccountStatusSummaryForm : Form
     public AccountStatusSummaryForm(
         AccountService  accountService,
         ProductService  productService,
+        SalesService    salesService,
         CustomerService customerService,
         UserContext     currentUser,
         AppSettings     appSettings)
     {
         _accountService  = accountService;
         _productService  = productService;
+        _salesService    = salesService;
         _customerService = customerService;
         _currentUser     = currentUser;
         _appSettings     = appSettings;
@@ -163,6 +166,7 @@ public class AccountStatusSummaryForm : Form
         using var dlg = new AccountListForm(
             _accountService,
             _productService,
+            _salesService,
             _customerService,
             _currentUser,
             _appSettings,

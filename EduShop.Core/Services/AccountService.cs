@@ -19,6 +19,9 @@ public class AccountService
     public List<Account> GetAll() =>
         _accountRepo.GetAll();
 
+    public List<Account> GetByOrderId(long orderId) =>
+        _accountRepo.GetByOrderId(orderId);
+
     public Account? Get(long accountId) =>
         _accountRepo.GetById(accountId);
 

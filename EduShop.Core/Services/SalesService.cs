@@ -26,6 +26,9 @@ public class SalesService
     public List<SaleItem> GetSaleItems(long saleId)
         => _salesRepo.GetSaleItems(saleId);
 
+    public SaleHeader? GetSale(long saleId)
+        => _salesRepo.GetSale(saleId);
+
     public SalesSummary GetSummary(DateTime? from, DateTime? to)
         => _salesRepo.GetSummary(from, to);
 

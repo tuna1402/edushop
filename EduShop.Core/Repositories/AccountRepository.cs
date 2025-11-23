@@ -87,6 +87,65 @@ ORDER BY subscription_end_date ASC, account_id ASC;
         return list;
     }
 
+    public List<Account> GetByOrderId(long orderId)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+SELECT account_id,
+       email,
+       product_id,
+       subscription_start_date,
+       subscription_end_date,
+       status,
+       customer_id,
+       order_id,
+       delivery_date,
+       last_payment_date,
+       memo,
+       is_deleted,
+       created_at,
+       created_by,
+       updated_at,
+       updated_by
+FROM   Account
+WHERE  is_deleted = 0
+  AND  order_id = $orderId
+ORDER BY subscription_end_date ASC, account_id ASC;
+";
+        cmd.Parameters.AddWithValue("$orderId", orderId);
+
+        using var reader = cmd.ExecuteReader();
+        var list = new List<Account>();
+
+        while (reader.Read())
+        {
+            var acc = new Account
+            {
+                AccountId             = reader.GetInt64(0),
+                Email                 = reader.GetString(1),
+                ProductId             = reader.GetInt64(2),
+                SubscriptionStartDate = ParseDate(reader.GetString(3)),
+                SubscriptionEndDate   = ParseDate(reader.GetString(4)),
+                Status                = reader.GetString(5),
+                CustomerId            = reader.IsDBNull(6) ? null : reader.GetInt64(6),
+                OrderId               = reader.IsDBNull(7) ? null : reader.GetInt64(7),
+                DeliveryDate          = ParseNullableDate(reader, 8),
+                LastPaymentDate       = ParseNullableDate(reader, 9),
+                Memo                  = reader.IsDBNull(10) ? null : reader.GetString(10),
+                IsDeleted             = reader.GetInt32(11) != 0,
+                CreatedAt             = DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
+                CreatedBy             = reader.IsDBNull(13) ? null : reader.GetString(13),
+                UpdatedAt             = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14), CultureInfo.InvariantCulture),
+                UpdatedBy             = reader.IsDBNull(15) ? null : reader.GetString(15)
+            };
+
+            list.Add(acc);
+        }
+
+        return list;
+    }
+
     public Account? GetById(long accountId)
     {
         using var conn = Open();

@@ -13,6 +13,7 @@ namespace EduShop.WinForms;
 public class SalesListForm : Form
 {
     private readonly SalesService _salesService;
+    private readonly AccountService _accountService;
 
     private DateTimePicker _dtFrom = null!;
     private DateTimePicker _dtTo = null!;
@@ -22,12 +23,14 @@ public class SalesListForm : Form
     private DataGridView _gridSales = null!;
     private DataGridView _gridItems = null!;
     private Label _lblSummary = null!;
+    private DataGridView _gridAccounts = null!;
 
     private List<SaleHeader> _currentSales = new();
 
-    public SalesListForm(SalesService salesService)
+    public SalesListForm(SalesService salesService, AccountService accountService)
     {
-        _salesService = salesService;
+        _salesService   = salesService;
+        _accountService = accountService;
 
         Text = "매출 현황";
         Width = 1000;
@@ -88,7 +91,7 @@ public class SalesListForm : Form
             Left = 10,
             Top = 45,
             Width = ClientSize.Width - 20,
-            Height = (ClientSize.Height - 120) / 2,
+            Height = 200,
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             ReadOnly = true,
             AllowUserToAddRows = false,
@@ -129,15 +132,15 @@ public class SalesListForm : Form
             Width = 120
         });
 
-        _gridSales.SelectionChanged += (_, _) => LoadSaleItemsForSelected();
+        _gridSales.SelectionChanged += (_, _) => LoadSaleRelatedData();
 
         _gridItems = new DataGridView
         {
             Left = 10,
             Top = _gridSales.Bottom + 10,
             Width = ClientSize.Width - 20,
-            Height = (ClientSize.Height - 120) / 2,
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            Height = 170,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             ReadOnly = true,
             AllowUserToAddRows = false,
             AllowUserToDeleteRows = false,
@@ -183,6 +186,61 @@ public class SalesListForm : Form
             Width = 100
         });
 
+        _gridAccounts = new DataGridView
+        {
+            Left = 10,
+            Top = _gridItems.Bottom + 10,
+            Width = ClientSize.Width - 20,
+            Height = 150,
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            ReadOnly = true,
+            AllowUserToAddRows = false,
+            AllowUserToDeleteRows = false,
+            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            MultiSelect = false,
+            AutoGenerateColumns = false
+        };
+
+        _gridAccounts.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "이메일",
+            DataPropertyName = "Email",
+            Width = 200
+        });
+        _gridAccounts.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "상태",
+            DataPropertyName = "Status",
+            Width = 100
+        });
+        _gridAccounts.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "시작일",
+            DataPropertyName = "StartDate",
+            Width = 90,
+            DefaultCellStyle = { Format = "yyyy-MM-dd" }
+        });
+        _gridAccounts.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "만료일",
+            DataPropertyName = "EndDate",
+            Width = 90,
+            DefaultCellStyle = { Format = "yyyy-MM-dd" }
+        });
+        _gridAccounts.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "납품일",
+            DataPropertyName = "DeliveryDate",
+            Width = 90,
+            DefaultCellStyle = { Format = "yyyy-MM-dd" }
+        });
+        _gridAccounts.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "메모",
+            DataPropertyName = "Memo",
+            Width = 220
+        });
+
         _lblSummary = new Label
         {
             Text = "합계: 0 원 / 마진: 0 원",
@@ -219,6 +277,7 @@ public class SalesListForm : Form
         Controls.Add(_btnSearch);
         Controls.Add(_gridSales);
         Controls.Add(_gridItems);
+        Controls.Add(_gridAccounts);
         Controls.Add(_lblSummary);
         Controls.Add(_btnExportPdf);
         Controls.Add(_btnClose);
@@ -236,20 +295,35 @@ public class SalesListForm : Form
         var summary = _salesService.GetSummary(from, to);
         _lblSummary.Text = $"합계: {summary.TotalAmount:N0} 원 / 마진: {summary.TotalProfit:N0} 원";
 
-        LoadSaleItemsForSelected();
+        LoadSaleRelatedData();
     }
 
-    private void LoadSaleItemsForSelected()
+    private void LoadSaleRelatedData()
     {
         if (_gridSales.CurrentRow?.DataBoundItem is not SaleHeader header)
         {
             _gridItems.DataSource = null;
+            _gridAccounts.DataSource = null;
             return;
         }
 
         var items = _salesService.GetSaleItems(header.SaleId);
         _gridItems.DataSource = null;
         _gridItems.DataSource = items;
+
+        var accounts = _accountService.GetByOrderId(header.SaleId);
+        var rows = accounts.Select(a => new
+        {
+            a.Email,
+            Status = AccountStatusHelper.ToDisplay(a.Status),
+            StartDate = a.SubscriptionStartDate,
+            EndDate = a.SubscriptionEndDate,
+            DeliveryDate = a.DeliveryDate,
+            a.Memo
+        }).ToList();
+
+        _gridAccounts.DataSource = null;
+        _gridAccounts.DataSource = rows;
     }
     private void ExportSalesReportPdf()
     {
