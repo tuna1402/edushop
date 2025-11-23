@@ -987,61 +987,6 @@ public class AccountListForm : Form
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
-
-    private void CancelSelectedAccounts()
-    {
-        var selected = GetSelectedAccounts();
-        if (selected.Count == 0)
-        {
-            MessageBox.Show("구독 취소할 계정을 선택하세요.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        var cancellable = selected
-            .Where(a => a.Status != AccountStatus.Canceled && a.Status != AccountStatus.ResetReady)
-            .ToList();
-
-        if (cancellable.Count == 0)
-        {
-            MessageBox.Show("선택된 계정은 이미 취소되었거나 재사용 준비 상태입니다.", "안내", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        var result = MessageBox.Show(
-            $"선택한 {cancellable.Count}개 계정의 구독을 취소(CANCELED) 상태로 변경하시겠습니까?",
-            "구독 취소 확인",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question);
-
-        if (result != DialogResult.Yes)
-            return;
-
-        var errors = new List<string>();
-
-        foreach (var acc in cancellable)
-        {
-            try
-            {
-                _accountService.CancelSubscription(acc.AccountId, _currentUser);
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"{acc.Email}: {ex.Message}");
-            }
-
-            ReloadData();
-
-            if (errors.Count > 0)
-            {
-                MessageBox.Show("일부 계정 처리 중 오류:\n" + string.Join("\n", errors.Take(5)), "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            else
-            {
-                MessageBox.Show("구독 취소가 완료되었습니다.", "완료", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-        }
-    }
-
     private void ImportAccountsCsv()
     {
         using var ofd = new OpenFileDialog
