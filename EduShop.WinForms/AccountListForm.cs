@@ -14,11 +14,11 @@ namespace EduShop.WinForms;
 
 public class AccountListForm : Form
 {
-    private const int ExpiringDays = 30;
     private readonly AccountService _accountService;
     private readonly ProductService _productService;
     private readonly CustomerService  _customerService;
     private readonly UserContext    _currentUser;
+    private readonly AppSettings    _appSettings;
     private readonly bool          _expiringModeLocked;
     private readonly bool          _expiringOnly;
     private readonly string?       _initialStatus;
@@ -72,8 +72,9 @@ public class AccountListForm : Form
         ProductService  productService,
         CustomerService customerService,
         UserContext     currentUser,
+        AppSettings     appSettings,
         bool            expiringOnly = false)
-        : this(accountService, productService, customerService, currentUser, expiringOnly, null)
+        : this(accountService, productService, customerService, currentUser, appSettings, expiringOnly, null)
     {
     }
 
@@ -82,6 +83,7 @@ public class AccountListForm : Form
         ProductService  productService,
         CustomerService customerService,
         UserContext     currentUser,
+        AppSettings     appSettings,
         bool            expiringOnly,
         string?         initialStatus)
     {
@@ -89,6 +91,7 @@ public class AccountListForm : Form
         _productService    = productService;
         _customerService   = customerService;
         _currentUser       = currentUser;
+        _appSettings       = appSettings;
         _expiringModeLocked = expiringOnly;
         _expiringOnly      = expiringOnly;
         _expiringFilterOn  = expiringOnly;
@@ -261,7 +264,7 @@ public class AccountListForm : Form
             AutoSize = true,
             Left = 10,
             Top = 60,
-            Text = $"※ 오늘 기준 {AppSettingsManager.Current.ExpiringDays}일 이내 만료 예정인 계정만 표시합니다.",
+            Text = $"※ 오늘 기준 {GetExpiringDays()}일 이내 만료 예정인 계정만 표시합니다.",
             Visible = _expiringOnly
         };
 
@@ -421,7 +424,7 @@ public class AccountListForm : Form
 
         // "더보기" 메뉴
         _ctxMoreMenu = new ContextMenuStrip();
-        _ctxMoreMenu.Items.Add($"만료 예정({AppSettingsManager.Current.ExpiringDays}일) 보기", null, (_, _) => ShowExpiring());
+        _ctxMoreMenu.Items.Add($"만료 예정({GetExpiringDays()}일) 보기", null, (_, _) => ShowExpiring());
         _ctxMoreMenu.Items.Add("엑셀 다운로드(계정 CSV Export)", null, (_, _) => ExportAccountsCsv());
         _ctxMoreMenu.Items.Add("엑셀 업로드(계정 CSV Import)", null, (_, _) => ImportAccountsCsv());
 
@@ -524,7 +527,7 @@ public class AccountListForm : Form
     private void ReloadData()
     {
         _currentAccounts = _expiringOnly
-            ? _accountService.GetExpiring(DateTime.Today, ExpiringDays)
+            ? _accountService.GetExpiring(DateTime.Today, GetExpiringDays())
             : _accountService.GetAll();
         ApplyFilter();
     }
@@ -541,7 +544,7 @@ public class AccountListForm : Form
         if (_expiringFilterOn)
         {
             var today = DateTime.Today;
-            var limit = today.AddDays(AppSettingsManager.Current.ExpiringDays);
+            var limit = today.AddDays(GetExpiringDays());
 
             query = query
                 .Where(a =>
@@ -851,6 +854,11 @@ public class AccountListForm : Form
         }
     }
 
+    private int GetExpiringDays()
+    {
+        return _appSettings.ExpiringDays > 0 ? _appSettings.ExpiringDays : 30;
+    }
+
     private void ShowExpiring()
     {
         _expiringFilterOn = true;
@@ -955,7 +963,10 @@ public class AccountListForm : Form
         using var sfd = new SaveFileDialog
         {
             Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
-            FileName = $"accounts_{DateTime.Now:yyyyMMddHHmm}.csv"
+            FileName = $"accounts_{DateTime.Now:yyyyMMddHHmm}.csv",
+            InitialDirectory = string.IsNullOrEmpty(_appSettings.DefaultExportFolder)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : _appSettings.DefaultExportFolder
         };
 
         if (sfd.ShowDialog(this) != DialogResult.OK)
@@ -1274,7 +1285,10 @@ public class AccountListForm : Form
         using var sfd = new SaveFileDialog
         {
             Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
-            FileName = $"delivery_accounts_{DateTime.Now:yyyyMMddHHmm}.csv"
+            FileName = $"delivery_accounts_{DateTime.Now:yyyyMMddHHmm}.csv",
+            InitialDirectory = string.IsNullOrEmpty(_appSettings.DefaultExportFolder)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : _appSettings.DefaultExportFolder
         };
 
         if (sfd.ShowDialog(this) != DialogResult.OK)

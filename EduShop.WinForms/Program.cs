@@ -17,7 +17,7 @@ internal static class Program
         try
         {
             ApplicationConfiguration.Initialize();
-            AppSettingsManager.Load();
+            var appSettings = SettingsStorage.Load();
             QuestPDF.Settings.License = LicenseType.Community;
 
             // 1) Windows 로컬 경로: %LOCALAPPDATA%\EduShop\edushop_winforms.db
@@ -47,7 +47,7 @@ internal static class Program
 
             var currentUser = new UserContext { UserId = "admin", UserName = "관리자" };
 
-            Application.Run(new MainForm(productService, salesService, accountService, customerService, currentUser));
+            Application.Run(new MainForm(productService, salesService, accountService, customerService, currentUser, appSettings));
         }
         catch (Exception ex)
         {

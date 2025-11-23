@@ -19,6 +19,7 @@ public class MainForm : Form
     private readonly AccountService  _accountService;
     private readonly CustomerService _customerService;
     private readonly UserContext     _currentUser;
+    private readonly AppSettings     _appSettings;
 
     // 메뉴바
     private MenuStrip _menuStrip = null!;
@@ -78,13 +79,15 @@ public class MainForm : Form
         SalesService    salesService,
         AccountService  accountService,
         CustomerService customerService,
-        UserContext     currentUser)
+        UserContext     currentUser,
+        AppSettings     appSettings)
     {
         _service         = service;
         _salesService    = salesService;
         _accountService  = accountService;
         _customerService = customerService;
         _currentUser     = currentUser;
+        _appSettings     = appSettings;
 
         Text = "EduShop 관리 프로그램";
         Width = 1200;
@@ -515,8 +518,12 @@ public class MainForm : Form
     // ── 파일/도구 관련 ────────────────────────────
     private void OpenSettings()
     {
-        using var dlg = new SettingsForm();
-        dlg.ShowDialog(this);
+        using var dlg = new SettingsForm(_appSettings);
+        if (dlg.ShowDialog(this) == DialogResult.OK)
+        {
+            MessageBox.Show("설정을 저장했습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
     }
 
     // 현재 화면이 이미 상품 목록이라 포커스만 주면 됨
@@ -541,7 +548,8 @@ public class MainForm : Form
             _customerService,
             _accountService,
             _salesService,
-            _currentUser);
+            _currentUser,
+            _appSettings);
 
         ShowEmbeddedForm(dashboard);
     }
@@ -561,13 +569,13 @@ public class MainForm : Form
 
     private void OpenAccountListForm()
     {
-        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser);
+        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser, _appSettings);
         ShowEmbeddedForm(f);
     }
 
     private void OpenQuoteForm()
     {
-        var f = new CustomerListForm(_customerService, _currentUser);
+        var f = new QuoteForm(_service, _salesService, _currentUser, _appSettings);
         ShowEmbeddedForm(f);
     }
 
@@ -579,13 +587,13 @@ public class MainForm : Form
 
     private void OpenSalesReport()
     {
-        var f = new QuoteForm(_service, _salesService, _currentUser);
+        var f = new QuoteForm(_service, _salesService, _currentUser, _appSettings);
         ShowEmbeddedForm(f);
     }
 
     private void OpenExpiringAccountList()
     {
-        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser, expiringOnly: true);
+        var f = new AccountListForm(_accountService, _service, _customerService, _currentUser, _appSettings, expiringOnly: true);
         ShowEmbeddedForm(f);
     }
 
@@ -595,7 +603,8 @@ public class MainForm : Form
             _accountService,
             _service,
             _customerService,
-            _currentUser);
+            _currentUser,
+            _appSettings);
 
         dlg.ShowDialog(this);
     }
@@ -901,7 +910,10 @@ public class MainForm : Form
         using var sfd = new SaveFileDialog
         {
             Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*",
-            FileName = $"products_{DateTime.Now:yyyyMMddHHmm}.csv"
+            FileName = $"products_{DateTime.Now:yyyyMMddHHmm}.csv",
+            InitialDirectory = string.IsNullOrEmpty(_appSettings.DefaultExportFolder)
+                ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+                : _appSettings.DefaultExportFolder
         };
 
         if (sfd.ShowDialog(this) != DialogResult.OK)

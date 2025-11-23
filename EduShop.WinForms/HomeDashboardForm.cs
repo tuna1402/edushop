@@ -14,6 +14,7 @@ public class HomeDashboardForm : Form
     private readonly AccountService  _accountService;
     private readonly SalesService?   _salesService;
     private readonly UserContext     _currentUser;
+    private readonly AppSettings     _appSettings;
 
     private Label _lblProductCount = null!;
     private Label _lblCustomerCount = null!;
@@ -30,13 +31,15 @@ public class HomeDashboardForm : Form
         CustomerService customerService,
         AccountService  accountService,
         SalesService?   salesService,
-        UserContext     currentUser)
+        UserContext     currentUser,
+        AppSettings     appSettings)
     {
         _productService  = productService;
         _customerService = customerService;
         _accountService  = accountService;
         _salesService    = salesService;
         _currentUser     = currentUser;
+        _appSettings     = appSettings;
 
         Text = "홈 대시보드";
         TopLevel = false;
@@ -249,8 +252,8 @@ public class HomeDashboardForm : Form
     private void LoadExpiringAccounts(List<Account> accounts, List<Product> products, List<Customer> customers)
     {
         var today = DateTime.Today;
-        var expiringDays = AppSettingsManager.Current.ExpiringDays > 0
-            ? AppSettingsManager.Current.ExpiringDays
+        var expiringDays = _appSettings.ExpiringDays > 0
+            ? _appSettings.ExpiringDays
             : 30;
         _lblExpiringTitle.Text = $"만료 예정 계정 ({expiringDays}일 이내)";
 
