@@ -96,7 +96,11 @@ public class MainForm : Form
         
         LoadProducts();
 
-        Load += (_, _) => ShowGuideOnStartup();
+        Load += (_, _) =>
+        {
+            ShowGuideOnStartup();
+            ShowHomeDashboard();
+        };
     }
 
     // ─────────────────────────────────────────────────────
@@ -388,7 +392,7 @@ public class MainForm : Form
         _fileMenu = new ToolStripMenuItem("파일(&F)");
 
         var mnuHome = new ToolStripMenuItem("홈 화면(&H)", null,
-            (_, _) => ShowGuide());
+            (_, _) => ShowHomeDashboard());
         var mnuSettings = new ToolStripMenuItem("환경 설정(&S)...", null,
             (_, _) => OpenSettings());
         var mnuExit = new ToolStripMenuItem("종료(&X)", null,
@@ -528,6 +532,18 @@ public class MainForm : Form
         _contentPanel.Controls.Clear();
         _contentPanel.Controls.Add(_productPagePanel);
         _grid.Focus();
+    }
+
+    private void ShowHomeDashboard()
+    {
+        var dashboard = new HomeDashboardForm(
+            _service,
+            _customerService,
+            _accountService,
+            _salesService,
+            _currentUser);
+
+        ShowEmbeddedForm(dashboard);
     }
 
     private void ShowProductCsvGuide()

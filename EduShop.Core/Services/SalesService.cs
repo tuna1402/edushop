@@ -28,4 +28,7 @@ public class SalesService
 
     public SalesSummary GetSummary(DateTime? from, DateTime? to)
         => _salesRepo.GetSummary(from, to);
+
+    public List<SaleHeader> GetRecent(int count)
+        => _salesRepo.GetRecent(count);
 }

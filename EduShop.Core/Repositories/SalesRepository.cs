@@ -145,6 +145,45 @@ ORDER BY sale_date DESC, sale_id DESC;
         return list;
     }
 
+    public List<SaleHeader> GetRecent(int count)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+
+        cmd.CommandText = @"
+SELECT sale_id, sale_date, customer_name, school_name, contact, memo,
+       total_amount, total_profit, created_at, created_by
+FROM   SaleHeader
+ORDER BY sale_date DESC, sale_id DESC
+LIMIT  $count;
+";
+
+        cmd.Parameters.AddWithValue("$count", count);
+
+        using var reader = cmd.ExecuteReader();
+        var list = new List<SaleHeader>();
+
+        while (reader.Read())
+        {
+            var sale = new SaleHeader
+            {
+                SaleId       = reader.GetInt64(0),
+                SaleDate     = DateTime.Parse(reader.GetString(1), CultureInfo.InvariantCulture),
+                CustomerName = reader.IsDBNull(2) ? null : reader.GetString(2),
+                SchoolName   = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Contact      = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Memo         = reader.IsDBNull(5) ? null : reader.GetString(5),
+                TotalAmount  = reader.GetInt64(6),
+                TotalProfit  = reader.GetInt64(7),
+                CreatedAt    = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture),
+                CreatedBy    = reader.IsDBNull(9) ? null : reader.GetString(9)
+            };
+            list.Add(sale);
+        }
+
+        return list;
+    }
+
     // 특정 매출의 항목 목록
     public List<SaleItem> GetSaleItems(long saleId)
     {
