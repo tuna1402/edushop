@@ -43,6 +43,7 @@ SELECT account_id,
        status,
        customer_id,
        order_id,
+       card_id,
        delivery_date,
        last_payment_date,
        memo,
@@ -71,14 +72,15 @@ ORDER BY subscription_end_date ASC, account_id ASC;
                 Status                = reader.GetString(5),
                 CustomerId            = reader.IsDBNull(6) ? null : reader.GetInt64(6),
                 OrderId               = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-                DeliveryDate          = ParseNullableDate(reader, 8),
-                LastPaymentDate       = ParseNullableDate(reader, 9),
-                Memo                  = reader.IsDBNull(10) ? null : reader.GetString(10),
-                IsDeleted             = reader.GetInt32(11) != 0,
-                CreatedAt             = DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
-                CreatedBy             = reader.IsDBNull(13) ? null : reader.GetString(13),
-                UpdatedAt             = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14), CultureInfo.InvariantCulture),
-                UpdatedBy             = reader.IsDBNull(15) ? null : reader.GetString(15)
+                CardId                = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+                DeliveryDate          = ParseNullableDate(reader, 9),
+                LastPaymentDate       = ParseNullableDate(reader, 10),
+                Memo                  = reader.IsDBNull(11) ? null : reader.GetString(11),
+                IsDeleted             = reader.GetInt32(12) != 0,
+                CreatedAt             = DateTime.Parse(reader.GetString(13), CultureInfo.InvariantCulture),
+                CreatedBy             = reader.IsDBNull(14) ? null : reader.GetString(14),
+                UpdatedAt             = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15), CultureInfo.InvariantCulture),
+                UpdatedBy             = reader.IsDBNull(16) ? null : reader.GetString(16)
             };
 
             list.Add(acc);
@@ -100,6 +102,7 @@ SELECT account_id,
        status,
        customer_id,
        order_id,
+       card_id,
        delivery_date,
        last_payment_date,
        memo,
@@ -130,14 +133,15 @@ ORDER BY subscription_end_date ASC, account_id ASC;
                 Status                = reader.GetString(5),
                 CustomerId            = reader.IsDBNull(6) ? null : reader.GetInt64(6),
                 OrderId               = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-                DeliveryDate          = ParseNullableDate(reader, 8),
-                LastPaymentDate       = ParseNullableDate(reader, 9),
-                Memo                  = reader.IsDBNull(10) ? null : reader.GetString(10),
-                IsDeleted             = reader.GetInt32(11) != 0,
-                CreatedAt             = DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
-                CreatedBy             = reader.IsDBNull(13) ? null : reader.GetString(13),
-                UpdatedAt             = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14), CultureInfo.InvariantCulture),
-                UpdatedBy             = reader.IsDBNull(15) ? null : reader.GetString(15)
+                CardId                = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+                DeliveryDate          = ParseNullableDate(reader, 9),
+                LastPaymentDate       = ParseNullableDate(reader, 10),
+                Memo                  = reader.IsDBNull(11) ? null : reader.GetString(11),
+                IsDeleted             = reader.GetInt32(12) != 0,
+                CreatedAt             = DateTime.Parse(reader.GetString(13), CultureInfo.InvariantCulture),
+                CreatedBy             = reader.IsDBNull(14) ? null : reader.GetString(14),
+                UpdatedAt             = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15), CultureInfo.InvariantCulture),
+                UpdatedBy             = reader.IsDBNull(16) ? null : reader.GetString(16)
             };
 
             list.Add(acc);
@@ -159,6 +163,7 @@ SELECT account_id,
        status,
        customer_id,
        order_id,
+       card_id,
        delivery_date,
        last_payment_date,
        memo,
@@ -185,14 +190,15 @@ WHERE  account_id = $id;
             Status                = reader.GetString(5),
             CustomerId            = reader.IsDBNull(6) ? null : reader.GetInt64(6),
             OrderId               = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-            DeliveryDate          = ParseNullableDate(reader, 8),
-            LastPaymentDate       = ParseNullableDate(reader, 9),
-            Memo                  = reader.IsDBNull(10) ? null : reader.GetString(10),
-            IsDeleted             = reader.GetInt32(11) != 0,
-            CreatedAt             = DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
-            CreatedBy             = reader.IsDBNull(13) ? null : reader.GetString(13),
-            UpdatedAt             = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14), CultureInfo.InvariantCulture),
-            UpdatedBy             = reader.IsDBNull(15) ? null : reader.GetString(15)
+            CardId                = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+            DeliveryDate          = ParseNullableDate(reader, 9),
+            LastPaymentDate       = ParseNullableDate(reader, 10),
+            Memo                  = reader.IsDBNull(11) ? null : reader.GetString(11),
+            IsDeleted             = reader.GetInt32(12) != 0,
+            CreatedAt             = DateTime.Parse(reader.GetString(13), CultureInfo.InvariantCulture),
+            CreatedBy             = reader.IsDBNull(14) ? null : reader.GetString(14),
+            UpdatedAt             = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15), CultureInfo.InvariantCulture),
+            UpdatedBy             = reader.IsDBNull(16) ? null : reader.GetString(16)
         };
     }
 
@@ -209,6 +215,7 @@ SELECT account_id,
        status,
        customer_id,
        order_id,
+       card_id,
        delivery_date,
        last_payment_date,
        memo,
@@ -235,14 +242,15 @@ WHERE  email = $email;
             Status                = reader.GetString(5),
             CustomerId            = reader.IsDBNull(6) ? null : reader.GetInt64(6),
             OrderId               = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-            DeliveryDate          = ParseNullableDate(reader, 8),
-            LastPaymentDate       = ParseNullableDate(reader, 9),
-            Memo                  = reader.IsDBNull(10) ? null : reader.GetString(10),
-            IsDeleted             = reader.GetInt32(11) != 0,
-            CreatedAt             = DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
-            CreatedBy             = reader.IsDBNull(13) ? null : reader.GetString(13),
-            UpdatedAt             = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14), CultureInfo.InvariantCulture),
-            UpdatedBy             = reader.IsDBNull(15) ? null : reader.GetString(15)
+            CardId                = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+            DeliveryDate          = ParseNullableDate(reader, 9),
+            LastPaymentDate       = ParseNullableDate(reader, 10),
+            Memo                  = reader.IsDBNull(11) ? null : reader.GetString(11),
+            IsDeleted             = reader.GetInt32(12) != 0,
+            CreatedAt             = DateTime.Parse(reader.GetString(13), CultureInfo.InvariantCulture),
+            CreatedBy             = reader.IsDBNull(14) ? null : reader.GetString(14),
+            UpdatedAt             = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15), CultureInfo.InvariantCulture),
+            UpdatedBy             = reader.IsDBNull(16) ? null : reader.GetString(16)
         };
     }
 
@@ -259,6 +267,7 @@ INSERT INTO Account
      status,
      customer_id,
      order_id,
+     card_id,
      delivery_date,
      last_payment_date,
      memo,
@@ -273,6 +282,7 @@ VALUES
      $status,
      $customerId,
      $orderId,
+     $cardId,
      $delivery,
      $lastPayment,
      $memo,
@@ -291,6 +301,7 @@ SELECT last_insert_rowid();
 
         cmd.Parameters.AddWithValue("$customerId", (object?)acc.CustomerId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$orderId",    (object?)acc.OrderId    ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$cardId",     (object?)acc.CardId     ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$delivery",
             acc.DeliveryDate.HasValue ? ToDate(acc.DeliveryDate.Value) : (object)DBNull.Value);
         cmd.Parameters.AddWithValue("$lastPayment",
@@ -315,6 +326,7 @@ SET email                   = $email,
     status                  = $status,
     customer_id             = $customerId,
     order_id                = $orderId,
+    card_id                 = $cardId,
     delivery_date           = $delivery,
     last_payment_date       = $lastPayment,
     memo                    = $memo,
@@ -332,6 +344,7 @@ WHERE account_id = $id;
 
         cmd.Parameters.AddWithValue("$customerId", (object?)acc.CustomerId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$orderId",    (object?)acc.OrderId    ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$cardId",     (object?)acc.CardId     ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$delivery",
             acc.DeliveryDate.HasValue ? ToDate(acc.DeliveryDate.Value) : (object)DBNull.Value);
         cmd.Parameters.AddWithValue("$lastPayment",
@@ -339,6 +352,23 @@ WHERE account_id = $id;
         cmd.Parameters.AddWithValue("$memo", (object?)acc.Memo ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$user", userName);
 
+        cmd.ExecuteNonQuery();
+    }
+
+    public void UpdateCardId(long accountId, long? cardId, string userName)
+    {
+        using var conn = Open();
+        using var cmd  = conn.CreateCommand();
+        cmd.CommandText = @"
+UPDATE Account
+SET card_id    = $cardId,
+    updated_at = datetime('now'),
+    updated_by = $user
+WHERE account_id = $id;
+";
+        cmd.Parameters.AddWithValue("$id", accountId);
+        cmd.Parameters.AddWithValue("$cardId", (object?)cardId ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$user", userName);
         cmd.ExecuteNonQuery();
     }
 
@@ -374,6 +404,7 @@ SELECT account_id,
        status,
        customer_id,
        order_id,
+       card_id,
        delivery_date,
        last_payment_date,
        memo,
@@ -405,14 +436,15 @@ ORDER BY subscription_end_date ASC, account_id ASC;
                 Status                = reader.GetString(5),
                 CustomerId            = reader.IsDBNull(6) ? null : reader.GetInt64(6),
                 OrderId               = reader.IsDBNull(7) ? null : reader.GetInt64(7),
-                DeliveryDate          = ParseNullableDate(reader, 8),
-                LastPaymentDate       = ParseNullableDate(reader, 9),
-                Memo                  = reader.IsDBNull(10) ? null : reader.GetString(10),
-                IsDeleted             = reader.GetInt32(11) != 0,
-                CreatedAt             = DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
-                CreatedBy             = reader.IsDBNull(13) ? null : reader.GetString(13),
-                UpdatedAt             = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14), CultureInfo.InvariantCulture),
-                UpdatedBy             = reader.IsDBNull(15) ? null : reader.GetString(15)
+                CardId                = reader.IsDBNull(8) ? null : reader.GetInt64(8),
+                DeliveryDate          = ParseNullableDate(reader, 9),
+                LastPaymentDate       = ParseNullableDate(reader, 10),
+                Memo                  = reader.IsDBNull(11) ? null : reader.GetString(11),
+                IsDeleted             = reader.GetInt32(12) != 0,
+                CreatedAt             = DateTime.Parse(reader.GetString(13), CultureInfo.InvariantCulture),
+                CreatedBy             = reader.IsDBNull(14) ? null : reader.GetString(14),
+                UpdatedAt             = reader.IsDBNull(15) ? null : DateTime.Parse(reader.GetString(15), CultureInfo.InvariantCulture),
+                UpdatedBy             = reader.IsDBNull(16) ? null : reader.GetString(16)
             };
 
             list.Add(acc);

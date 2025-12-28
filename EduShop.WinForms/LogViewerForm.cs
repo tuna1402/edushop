@@ -234,7 +234,8 @@ public class LogViewerForm : Form
             AccountActionType.Reuse,
             AccountActionType.Update,
             AccountActionType.StatusChange,
-            AccountActionType.PasswordReset
+            AccountActionType.PasswordReset,
+            AccountActionType.CardChange
         });
         _cboUsageAction.SelectedIndex = 0;
 

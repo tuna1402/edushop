@@ -15,6 +15,7 @@ public class Account
 
     public long? CustomerId { get; set; }
     public long? OrderId    { get; set; }
+    public long? CardId     { get; set; }
 
     public DateTime? DeliveryDate    { get; set; }
     public DateTime? LastPaymentDate { get; set; }
