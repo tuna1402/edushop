@@ -13,6 +13,7 @@ public class AccountStatusSummaryForm : Form
     private readonly ProductService   _productService;
     private readonly SalesService     _salesService;
     private readonly CustomerService  _customerService;
+    private readonly CardService      _cardService;
     private readonly UserContext      _currentUser;
     private readonly AppSettings      _appSettings;
 
@@ -32,6 +33,7 @@ public class AccountStatusSummaryForm : Form
         ProductService  productService,
         SalesService    salesService,
         CustomerService customerService,
+        CardService     cardService,
         UserContext     currentUser,
         AppSettings     appSettings)
     {
@@ -39,6 +41,7 @@ public class AccountStatusSummaryForm : Form
         _productService  = productService;
         _salesService    = salesService;
         _customerService = customerService;
+        _cardService     = cardService;
         _currentUser     = currentUser;
         _appSettings     = appSettings;
 
@@ -168,6 +171,7 @@ public class AccountStatusSummaryForm : Form
             _productService,
             _salesService,
             _customerService,
+            _cardService,
             _currentUser,
             _appSettings,
             expiringOnly: false,

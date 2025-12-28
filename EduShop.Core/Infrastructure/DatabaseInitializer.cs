@@ -91,6 +91,7 @@ public static class DatabaseInitializer
                 status                  TEXT    NOT NULL,
                 customer_id             INTEGER NULL,
                 order_id                INTEGER NULL,
+                card_id                 INTEGER NULL,
                 delivery_date           TEXT    NULL,
                 last_payment_date       TEXT    NULL,
                 memo                    TEXT    NULL,
