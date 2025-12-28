@@ -1079,6 +1079,11 @@ public class AccountListForm : Form
             })
             .ToList();
 
+        if (options.Count == 0)
+        {
+            return null;
+        }
+
         var cbo = new ComboBox
         {
             Left = lbl.Right + 5,
