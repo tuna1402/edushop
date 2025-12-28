@@ -91,6 +91,7 @@ public static class DatabaseInitializer
                 status                  TEXT    NOT NULL,
                 customer_id             INTEGER NULL,
                 order_id                INTEGER NULL,
+                card_id                 INTEGER NULL,
                 delivery_date           TEXT    NULL,
                 last_payment_date       TEXT    NULL,
                 memo                    TEXT    NULL,
@@ -102,6 +103,8 @@ public static class DatabaseInitializer
             );
             ";
         cmd.ExecuteNonQuery();
+
+        EnsureAccountColumn(conn, "card_id", "INTEGER NULL");
 
         // ─────────────────────────────────────────────────────────────
         // AccountUsageLog (계정 사용 로그)
@@ -140,5 +143,23 @@ public static class DatabaseInitializer
             );
             ";
             cmd.ExecuteNonQuery();
+    }
+
+    private static void EnsureAccountColumn(SqliteConnection conn, string columnName, string columnDefinition)
+    {
+        using var check = conn.CreateCommand();
+        check.CommandText = "PRAGMA table_info(Account);";
+        using var reader = check.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        using var alter = conn.CreateCommand();
+        alter.CommandText = $"ALTER TABLE Account ADD COLUMN {columnName} {columnDefinition};";
+        alter.ExecuteNonQuery();
     }
 }
