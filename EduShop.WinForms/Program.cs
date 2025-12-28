@@ -35,6 +35,7 @@ internal static class Program
             var productRepo     = new ProductRepository(connectionString);
             var logRepo         = new AuditLogRepository(connectionString);
             var productService  = new ProductService(productRepo, logRepo);
+            var cardRepo        = new CardRepository(connectionString);
             var accountRepo      = new AccountRepository(connectionString);
             var accountLogRepo   = new AccountUsageLogRepository(connectionString);
             var customerRepo   = new CustomerRepository(connectionString);
@@ -44,6 +45,7 @@ internal static class Program
             var salesService = new SalesService(salesRepo);
             var accountService   = new AccountService(accountRepo, accountLogRepo);
             var customerService = new CustomerService(customerRepo);
+            var cardService     = new CardService(cardRepo, logRepo);
 
             var currentUser = new UserContext { UserId = "admin", UserName = "관리자" };
 
@@ -52,6 +54,7 @@ internal static class Program
                 salesService,
                 accountService,
                 customerService,
+                cardService,
                 logRepo,
                 accountLogRepo,
                 currentUser,
