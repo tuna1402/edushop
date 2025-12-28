@@ -19,6 +19,7 @@ public class MainForm : Form
     private readonly SalesService    _salesService;
     private readonly AccountService  _accountService;
     private readonly CustomerService _customerService;
+    private readonly CardService     _cardService;
     private readonly AuditLogRepository _auditRepo;
     private readonly AccountUsageLogRepository _usageRepo;
     private readonly UserContext     _currentUser;
@@ -82,6 +83,7 @@ public class MainForm : Form
         SalesService    salesService,
         AccountService  accountService,
         CustomerService customerService,
+        CardService     cardService,
         AuditLogRepository auditRepo,
         AccountUsageLogRepository usageRepo,
         UserContext     currentUser,
@@ -91,6 +93,7 @@ public class MainForm : Form
         _salesService    = salesService;
         _accountService  = accountService;
         _customerService = customerService;
+        _cardService     = cardService;
         _auditRepo       = auditRepo;
         _usageRepo       = usageRepo;
         _currentUser     = currentUser;
@@ -391,6 +394,7 @@ public class MainForm : Form
         _ctxMoreMenu.Items.Add("매출 현황", null, (_, _) => OpenSalesListForm());
         _ctxMoreMenu.Items.Add("계정 관리", null, (_, _) => OpenAccountListForm());
         _ctxMoreMenu.Items.Add("고객 관리", null, (_, _) => OpenCustomerListForm());
+        _ctxMoreMenu.Items.Add("카드 관리", null, (_, _) => OpenCardListForm());
     }
 
 
@@ -426,6 +430,8 @@ public class MainForm : Form
             (_, _) => OpenCustomerListForm());
         var mnuAccountList = new ToolStripMenuItem("계정 목록(&A)...", null,
             (_, _) => OpenAccountListForm());
+        var mnuCardList = new ToolStripMenuItem("카드 목록(&D)...", null,
+            (_, _) => OpenCardListForm());
         var mnuQuote = new ToolStripMenuItem("견적서 작성(&Q)...", null,
             (_, _) => OpenQuoteForm());
         var mnuSalesList = new ToolStripMenuItem("매출/납품 내역(&O)...", null,
@@ -438,6 +444,7 @@ public class MainForm : Form
             new ToolStripSeparator(),
             mnuCustomerList,
             mnuAccountList,
+            mnuCardList,
             new ToolStripSeparator(),
             mnuQuote,
             mnuSalesList
@@ -593,6 +600,12 @@ public class MainForm : Form
     private void OpenAccountListForm()
     {
         var f = new AccountListForm(_accountService, _service, _salesService, _customerService, _currentUser, _appSettings);
+        ShowEmbeddedForm(f);
+    }
+
+    private void OpenCardListForm()
+    {
+        var f = new CardListForm(_cardService, _currentUser);
         ShowEmbeddedForm(f);
     }
 
