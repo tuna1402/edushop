@@ -18,6 +18,7 @@ public class AccountListForm : Form
     private readonly ProductService _productService;
     private readonly SalesService   _salesService;
     private readonly CustomerService  _customerService;
+    private readonly CardService    _cardService;
     private readonly UserContext    _currentUser;
     private readonly AppSettings    _appSettings;
     private readonly bool          _expiringModeLocked;
@@ -50,6 +51,7 @@ public class AccountListForm : Form
 
     private List<Product>  _products = new();
     private List<Customer> _customers = new();
+    private List<Card>     _cards = new();
     private List<Account>  _currentAccounts = new();
     private bool          _expiringFilterOn = false;
     private Label         _lblExpiringNotice = null!;
@@ -59,6 +61,7 @@ public class AccountListForm : Form
         public long     AccountId   { get; set; }
         public string   Email       { get; set; } = "";
         public string   Product     { get; set; } = "";
+        public string   CardName    { get; set; } = "";
         public string   Status      { get; set; } = "";
         public string   StatusDisplay { get; set; } = "";
         public DateTime StartDate   { get; set; }
@@ -75,10 +78,11 @@ public class AccountListForm : Form
         ProductService  productService,
         SalesService    salesService,
         CustomerService customerService,
+        CardService     cardService,
         UserContext     currentUser,
         AppSettings     appSettings,
         bool            expiringOnly = false)
-        : this(accountService, productService, salesService, customerService, currentUser, appSettings, expiringOnly, null)
+        : this(accountService, productService, salesService, customerService, cardService, currentUser, appSettings, expiringOnly, null)
     {
     }
 
@@ -87,6 +91,7 @@ public class AccountListForm : Form
         ProductService  productService,
         SalesService    salesService,
         CustomerService customerService,
+        CardService     cardService,
         UserContext     currentUser,
         AppSettings     appSettings,
         bool            expiringOnly,
@@ -96,6 +101,7 @@ public class AccountListForm : Form
         _productService    = productService;
         _salesService      = salesService;
         _customerService   = customerService;
+        _cardService       = cardService;
         _currentUser       = currentUser;
         _appSettings       = appSettings;
         _expiringModeLocked = expiringOnly;
@@ -110,6 +116,7 @@ public class AccountListForm : Form
 
         InitializeControls();
         LoadProducts();
+        LoadCards();
         ReloadData();
     }
 
@@ -310,6 +317,12 @@ public class AccountListForm : Form
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
+            HeaderText = "결제 카드",
+            DataPropertyName = "CardName",
+            Width = 180
+        });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
             HeaderText = "상태",
             DataPropertyName = "StatusDisplay",
             Width = 100
@@ -442,6 +455,9 @@ public class AccountListForm : Form
         _ctxRowMenu.Items.Add("계정 재사용...", null, (_, _) => ReuseSelectedAccount());
         _ctxRowMenu.Items.Add("재사용 준비", null, (_, _) => ResetReadySelected());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
+        _ctxRowMenu.Items.Add("결제 카드 연결/변경...", null, (_, _) => AssignCardToSelected());
+        _ctxRowMenu.Items.Add("결제 카드 해제", null, (_, _) => UnsetCardForSelected());
+        _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("선택 계정만 엑셀 다운로드", null, (_, _) => ExportAccountsCsv(true));
         _ctxRowMenu.Items.Add("선택 계정 납품용 엑셀", null, (_, _) => ExportDeliveryCsv());
 
@@ -519,6 +535,11 @@ public class AccountListForm : Form
         _cboProduct.SelectedIndex = 0;
     }
 
+    private void LoadCards()
+    {
+        _cards = _cardService.GetAll();
+    }
+
     private void ResetFilters()
     {
         _txtEmail.Text = "";
@@ -552,6 +573,7 @@ public class AccountListForm : Form
 
     private void ReloadData()
     {
+        LoadCards();
         _currentAccounts = _expiringOnly
             ? _accountService.GetExpiring(DateTime.Today, GetExpiringDays())
             : _accountService.GetAll();
@@ -634,6 +656,8 @@ public class AccountListForm : Form
             ordered = ordered.ThenBy(a => a.AccountId);
         }
 
+        var cardMap = _cards.ToDictionary(c => c.CardId, GetCardDisplay);
+
         var list = ordered
             .Select(a =>
             {
@@ -647,6 +671,9 @@ public class AccountListForm : Form
                     AccountId    = a.AccountId,
                     Email        = a.Email,
                     Product      = productName,
+                    CardName     = a.CardId.HasValue && cardMap.TryGetValue(a.CardId.Value, out var cardName)
+                        ? cardName
+                        : "",
                     Status       = a.Status,
                     StatusDisplay = AccountStatusHelper.ToDisplay(a.Status),
                     StartDate    = a.SubscriptionStartDate,
@@ -661,6 +688,13 @@ public class AccountListForm : Form
             .ToList();
 
         _grid.DataSource = list;
+    }
+
+    private static string GetCardDisplay(Card card)
+    {
+        var company = string.IsNullOrWhiteSpace(card.CardCompany) ? "" : $" ({card.CardCompany})";
+        var last4 = string.IsNullOrWhiteSpace(card.Last4Digits) ? "" : $" - {card.Last4Digits}";
+        return $"{card.CardName}{company}{last4}";
     }
 
     private Account? GetSelectedAccount()
@@ -941,6 +975,171 @@ public class AccountListForm : Form
             MessageBox.Show(ex.Message, "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void AssignCardToSelected()
+    {
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("결제 카드를 연결할 계정을 선택하세요.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        LoadCards();
+        if (_cards.Count == 0)
+        {
+            MessageBox.Show("등록된 카드가 없습니다. 먼저 카드 정보를 등록하세요.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var initialCardId = GetCommonCardId(selected);
+        var selectedCard = ShowCardSelectionDialog(initialCardId);
+        if (selectedCard == null)
+            return;
+
+        try
+        {
+            _accountService.UpdateCardAssignments(selected.Select(a => a.AccountId), selectedCard.CardId, _currentUser);
+            ReloadData();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"카드 연결 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void UnsetCardForSelected()
+    {
+        var selected = GetSelectedAccounts();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("카드를 해제할 계정을 선택하세요.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"선택한 {selected.Count}개 계정의 카드 연결을 해제하시겠습니까?",
+            "카드 해제 확인",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (result != DialogResult.Yes)
+            return;
+
+        try
+        {
+            _accountService.UpdateCardAssignments(selected.Select(a => a.AccountId), null, _currentUser);
+            ReloadData();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"카드 해제 중 오류: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private long? GetCommonCardId(List<Account> accounts)
+    {
+        if (accounts.Count == 0) return null;
+        var first = accounts[0].CardId;
+        return accounts.All(a => a.CardId == first) ? first : null;
+    }
+
+    private Card? ShowCardSelectionDialog(long? initialCardId)
+    {
+        using var dlg = new Form
+        {
+            Text = "결제 카드 선택",
+            Width = 360,
+            Height = 160,
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false
+        };
+
+        var lbl = new Label
+        {
+            Text = "카드",
+            Left = 10,
+            Top = 20,
+            Width = 60
+        };
+
+        var options = _cards
+            .Select(c => new CardOption
+            {
+                CardId = c.CardId,
+                Display = GetCardDisplay(c)
+            })
+            .ToList();
+
+        if (options.Count == 0)
+        {
+            return null;
+        }
+
+        var cbo = new ComboBox
+        {
+            Left = lbl.Right + 5,
+            Top = 16,
+            Width = 240,
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            DataSource = options,
+            DisplayMember = nameof(CardOption.Display),
+            ValueMember = nameof(CardOption.CardId)
+        };
+
+        if (initialCardId.HasValue && options.Any(o => o.CardId == initialCardId.Value))
+        {
+            cbo.SelectedValue = initialCardId.Value;
+        }
+        else if (options.Count > 0)
+        {
+            cbo.SelectedIndex = 0;
+        }
+
+        var btnOk = new Button
+        {
+            Text = "확인",
+            Left = cbo.Left,
+            Top = cbo.Bottom + 15,
+            Width = 80,
+            DialogResult = DialogResult.OK
+        };
+
+        var btnCancel = new Button
+        {
+            Text = "취소",
+            Left = btnOk.Right + 10,
+            Top = btnOk.Top,
+            Width = 80,
+            DialogResult = DialogResult.Cancel
+        };
+
+        dlg.Controls.Add(lbl);
+        dlg.Controls.Add(cbo);
+        dlg.Controls.Add(btnOk);
+        dlg.Controls.Add(btnCancel);
+        dlg.AcceptButton = btnOk;
+        dlg.CancelButton = btnCancel;
+
+        if (dlg.ShowDialog(this) != DialogResult.OK)
+            return null;
+
+        var selectedId = (long)cbo.SelectedValue!;
+        return _cards.FirstOrDefault(c => c.CardId == selectedId);
+    }
+
+    private class CardOption
+    {
+        public long   CardId { get; set; }
+        public string Display { get; set; } = "";
     }
 
     private int GetExpiringDays()
