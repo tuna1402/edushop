@@ -12,4 +12,5 @@ public static class AccountActionType
     public const string PasswordReset = "PASSWORD_RESET";
     public const string AssignToOrder   = "ASSIGN_TO_ORDER";
     public const string UnassignFromOrder = "UNASSIGN_FROM_ORDER";
+    public const string CardChange = "CARD_CHANGE";
 }

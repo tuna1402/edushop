@@ -599,7 +599,7 @@ public class MainForm : Form
 
     private void OpenAccountListForm()
     {
-        var f = new AccountListForm(_accountService, _service, _salesService, _customerService, _currentUser, _appSettings);
+        var f = new AccountListForm(_accountService, _service, _salesService, _customerService, _cardService, _currentUser, _appSettings);
         ShowEmbeddedForm(f);
     }
 
@@ -635,7 +635,7 @@ public class MainForm : Form
 
     private void OpenExpiringAccountList()
     {
-        var f = new AccountListForm(_accountService, _service, _salesService, _customerService, _currentUser, _appSettings, expiringOnly: true);
+        var f = new AccountListForm(_accountService, _service, _salesService, _customerService, _cardService, _currentUser, _appSettings, expiringOnly: true);
         ShowEmbeddedForm(f);
     }
 
@@ -646,6 +646,7 @@ public class MainForm : Form
             _service,
             _salesService,
             _customerService,
+            _cardService,
             _currentUser,
             _appSettings);
 

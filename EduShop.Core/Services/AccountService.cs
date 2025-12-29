@@ -315,6 +315,44 @@ public class AccountService
             Description = "기본 정보 수정"
         }, user.UserName);
     }
+
+    public void UpdateCardAssignments(IEnumerable<long> accountIds, long? cardId, UserContext user)
+    {
+        foreach (var accountId in accountIds)
+        {
+            var acc = _accountRepo.GetById(accountId);
+            if (acc == null)
+                continue;
+
+            if (acc.CardId == cardId)
+                continue;
+
+            var oldCardId = acc.CardId;
+            acc.CardId = cardId;
+
+            _accountRepo.UpdateCardId(acc.AccountId, cardId, user.UserName);
+
+            var description = cardId.HasValue
+                ? oldCardId.HasValue
+                    ? $"결제 카드 변경: {oldCardId} → {cardId}"
+                    : $"결제 카드 연결: {cardId}"
+                : oldCardId.HasValue
+                    ? $"결제 카드 해제: {oldCardId}"
+                    : "결제 카드 해제";
+
+            _logRepo.Insert(new AccountUsageLog
+            {
+                AccountId   = acc.AccountId,
+                CustomerId  = acc.CustomerId,
+                ProductId   = acc.ProductId,
+                ActionType  = AccountActionType.CardChange,
+                RequestDate = acc.SubscriptionStartDate,
+                ExpireDate  = acc.SubscriptionEndDate,
+                Description = description
+            }, user.UserName);
+        }
+    }
+
     public List<Account> GetExpiring(DateTime referenceDate, int days)
         => _accountRepo.GetExpiring(referenceDate, days);
         
