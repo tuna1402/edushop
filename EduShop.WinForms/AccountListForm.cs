@@ -988,19 +988,15 @@ public class AccountListForm : Form
         }
 
         LoadCards();
-        var activeCards = _cards
-            .Where(c => string.Equals(c.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        if (activeCards.Count == 0)
+        if (_cards.Count == 0)
         {
-            MessageBox.Show("등록된 ACTIVE 카드가 없습니다. 먼저 카드 정보를 등록하세요.", "안내",
+            MessageBox.Show("등록된 카드가 없습니다. 먼저 카드 정보를 등록하세요.", "안내",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         var initialCardId = GetCommonCardId(selected);
-        var selectedCard = ShowCardSelectionDialog(activeCards, initialCardId);
+        var selectedCard = ShowCardSelectionDialog(initialCardId);
         if (selectedCard == null)
             return;
 
@@ -1054,7 +1050,7 @@ public class AccountListForm : Form
         return accounts.All(a => a.CardId == first) ? first : null;
     }
 
-    private Card? ShowCardSelectionDialog(List<Card> cards, long? initialCardId)
+    private Card? ShowCardSelectionDialog(long? initialCardId)
     {
         using var dlg = new Form
         {
@@ -1075,7 +1071,7 @@ public class AccountListForm : Form
             Width = 60
         };
 
-        var options = cards
+        var options = _cards
             .Select(c => new CardOption
             {
                 CardId = c.CardId,
@@ -1103,7 +1099,7 @@ public class AccountListForm : Form
         {
             cbo.SelectedValue = initialCardId.Value;
         }
-        else if (cbo.Items.Count > 0)
+        else if (options.Count > 0)
         {
             cbo.SelectedIndex = 0;
         }
@@ -1137,7 +1133,7 @@ public class AccountListForm : Form
             return null;
 
         var selectedId = (long)cbo.SelectedValue!;
-        return cards.FirstOrDefault(c => c.CardId == selectedId);
+        return _cards.FirstOrDefault(c => c.CardId == selectedId);
     }
 
     private class CardOption
