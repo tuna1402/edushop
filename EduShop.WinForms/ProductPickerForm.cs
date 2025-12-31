@@ -65,7 +65,7 @@ public class ProductPickerForm : Form
             Width = 120,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        _cboStatus.Items.AddRange(new[] { "전체", "판매중", "판매중지" });
+        _cboStatus.Items.AddRange(new[] { "전체", "판매중", "품절" });
         _cboStatus.SelectedIndex = 0;
 
         _btnSearch = new Button
@@ -112,9 +112,16 @@ public class ProductPickerForm : Form
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "소매가",
-            DataPropertyName = "RetailPrice",
+            HeaderText = "기간(개월)",
+            DataPropertyName = "DurationMonths",
             Width = 80
+        });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "판매가",
+            DataPropertyName = "SalePriceKrw",
+            Width = 90,
+            DefaultCellStyle = { Format = "N0" }
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
@@ -124,6 +131,14 @@ public class ProductPickerForm : Form
         });
 
         _grid.CellDoubleClick += (_, _) => SelectCurrent();
+        _grid.CellFormatting += (_, e) =>
+        {
+            if (_grid.Columns[e.ColumnIndex].DataPropertyName == "Status" && e.Value is string status)
+            {
+                e.Value = status == "ACTIVE" ? "판매중" : "품절";
+                e.FormattingApplied = true;
+            }
+        };
 
         _btnSelect = new Button
         {
@@ -177,7 +192,7 @@ public class ProductPickerForm : Form
 
         if (statusFilter == "판매중")
             query = query.Where(p => p.Status == "ACTIVE");
-        else if (statusFilter == "판매중지")
+        else if (statusFilter == "품절")
             query = query.Where(p => p.Status == "INACTIVE");
 
         _currentList = query.ToList();

@@ -15,8 +15,10 @@ public class CustomerEditForm : Form
 
     private TextBox _txtName = null!;
     private TextBox _txtContact = null!;
-    private TextBox _txtPhone = null!;
-    private TextBox _txtEmail = null!;
+    private TextBox _txtPhone1 = null!;
+    private TextBox _txtPhone2 = null!;
+    private TextBox _txtEmail1 = null!;
+    private TextBox _txtEmail2 = null!;
     private TextBox _txtAddress = null!;
     private TextBox _txtMemo = null!;
     private Button  _btnSave = null!;
@@ -34,7 +36,7 @@ public class CustomerEditForm : Form
 
         Text = _customer == null ? "고객 등록" : "고객 수정";
         Width = 600;
-        Height = 450;
+        Height = 520;
         StartPosition = FormStartPosition.CenterParent;
 
         InitializeControls();
@@ -50,7 +52,7 @@ public class CustomerEditForm : Form
 
         var lblName = new Label
         {
-            Text  = "고객명",
+            Text  = "학교명",
             Left  = leftLabel,
             Top   = top + 4,
             Width = 90
@@ -78,14 +80,14 @@ public class CustomerEditForm : Form
         };
         top += rowHeight;
 
-        var lblPhone = new Label
+        var lblPhone1 = new Label
         {
-            Text  = "전화",
+            Text  = "전화1",
             Left  = leftLabel,
             Top   = top + 4,
             Width = 90
         };
-        _txtPhone = new TextBox
+        _txtPhone1 = new TextBox
         {
             Left  = leftInput,
             Top   = top,
@@ -93,14 +95,44 @@ public class CustomerEditForm : Form
         };
         top += rowHeight;
 
-        var lblEmail = new Label
+        var lblPhone2 = new Label
         {
-            Text  = "이메일",
+            Text  = "전화2",
             Left  = leftLabel,
             Top   = top + 4,
             Width = 90
         };
-        _txtEmail = new TextBox
+        _txtPhone2 = new TextBox
+        {
+            Left  = leftInput,
+            Top   = top,
+            Width = 250
+        };
+        top += rowHeight;
+
+        var lblEmail1 = new Label
+        {
+            Text  = "이메일1",
+            Left  = leftLabel,
+            Top   = top + 4,
+            Width = 90
+        };
+        _txtEmail1 = new TextBox
+        {
+            Left  = leftInput,
+            Top   = top,
+            Width = 350
+        };
+        top += rowHeight;
+
+        var lblEmail2 = new Label
+        {
+            Text  = "이메일2",
+            Left  = leftLabel,
+            Top   = top + 4,
+            Width = 90
+        };
+        _txtEmail2 = new TextBox
         {
             Left  = leftInput,
             Top   = top,
@@ -165,10 +197,14 @@ public class CustomerEditForm : Form
         Controls.Add(_txtName);
         Controls.Add(lblContact);
         Controls.Add(_txtContact);
-        Controls.Add(lblPhone);
-        Controls.Add(_txtPhone);
-        Controls.Add(lblEmail);
-        Controls.Add(_txtEmail);
+        Controls.Add(lblPhone1);
+        Controls.Add(_txtPhone1);
+        Controls.Add(lblPhone2);
+        Controls.Add(_txtPhone2);
+        Controls.Add(lblEmail1);
+        Controls.Add(_txtEmail1);
+        Controls.Add(lblEmail2);
+        Controls.Add(_txtEmail2);
         Controls.Add(lblAddress);
         Controls.Add(_txtAddress);
         Controls.Add(lblMemo);
@@ -181,10 +217,12 @@ public class CustomerEditForm : Form
     {
         if (_customer == null) return;
 
-        _txtName.Text    = _customer.CustomerName;
+        _txtName.Text    = _customer.SchoolName;
         _txtContact.Text = _customer.ContactName ?? "";
-        _txtPhone.Text   = _customer.Phone ?? "";
-        _txtEmail.Text   = _customer.Email ?? "";
+        _txtPhone1.Text  = _customer.Phone1 ?? "";
+        _txtPhone2.Text  = _customer.Phone2 ?? "";
+        _txtEmail1.Text  = _customer.Email1 ?? "";
+        _txtEmail2.Text  = _customer.Email2 ?? "";
         _txtAddress.Text = _customer.Address ?? "";
         _txtMemo.Text    = _customer.Memo ?? "";
     }
@@ -194,7 +232,7 @@ public class CustomerEditForm : Form
         var name = _txtName.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            MessageBox.Show("고객명을 입력하세요.", "오류",
+            MessageBox.Show("학교명을 입력하세요.", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             _txtName.Focus();
             return;
@@ -204,10 +242,12 @@ public class CustomerEditForm : Form
         {
             var c = new Customer
             {
-                CustomerName = name,
+                SchoolName   = name,
                 ContactName  = _txtContact.Text.Trim(),
-                Phone        = _txtPhone.Text.Trim(),
-                Email        = _txtEmail.Text.Trim(),
+                Phone1       = _txtPhone1.Text.Trim(),
+                Phone2       = _txtPhone2.Text.Trim(),
+                Email1       = _txtEmail1.Text.Trim(),
+                Email2       = _txtEmail2.Text.Trim(),
                 Address      = _txtAddress.Text.Trim(),
                 Memo         = _txtMemo.Text
             };
@@ -218,10 +258,12 @@ public class CustomerEditForm : Form
         }
         else
         {
-            _customer.CustomerName = name;
+            _customer.SchoolName   = name;
             _customer.ContactName  = _txtContact.Text.Trim();
-            _customer.Phone        = _txtPhone.Text.Trim();
-            _customer.Email        = _txtEmail.Text.Trim();
+            _customer.Phone1       = _txtPhone1.Text.Trim();
+            _customer.Phone2       = _txtPhone2.Text.Trim();
+            _customer.Email1       = _txtEmail1.Text.Trim();
+            _customer.Email2       = _txtEmail2.Text.Trim();
             _customer.Address      = _txtAddress.Text.Trim();
             _customer.Memo         = _txtMemo.Text;
 

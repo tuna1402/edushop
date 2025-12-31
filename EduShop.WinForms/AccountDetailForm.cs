@@ -322,7 +322,7 @@ public class AccountDetailForm : Form
         _cboLogCustomer.Items.Add("(전체)");
         foreach (var c in _customers)
         {
-            _cboLogCustomer.Items.Add(c.CustomerName);
+            _cboLogCustomer.Items.Add(c.SchoolName);
         }
         _cboLogCustomer.SelectedIndex = 0;
 
@@ -491,6 +491,6 @@ public class AccountDetailForm : Form
     private string GetCustomerName(long customerId)
     {
         var customer = _customers.FirstOrDefault(c => c.CustomerId == customerId);
-        return customer?.CustomerName ?? $"#{customerId}";
+        return customer?.SchoolName ?? $"#{customerId}";
     }
 }
