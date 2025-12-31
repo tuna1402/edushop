@@ -24,6 +24,7 @@ public class MainForm : Form
     private readonly AccountUsageLogRepository _usageRepo;
     private readonly UserContext     _currentUser;
     private readonly AppSettings     _appSettings;
+    private readonly SupabaseSessionState _supabaseState;
 
     // 메뉴바
     private MenuStrip _menuStrip = null!;
@@ -32,6 +33,8 @@ public class MainForm : Form
     private ToolStripMenuItem _reportMenu = null!;
     private ToolStripMenuItem _toolsMenu = null!;
     private ToolStripMenuItem _helpMenu = null!;
+    private StatusStrip _statusStrip = null!;
+    private ToolStripStatusLabel _dbStatusLabel = null!;
 
     // 가이드 초기 1회 표시용
     private bool _guideShown = false;
@@ -96,7 +99,8 @@ public class MainForm : Form
         AuditLogRepository auditRepo,
         AccountUsageLogRepository usageRepo,
         UserContext     currentUser,
-        AppSettings     appSettings)
+        AppSettings     appSettings,
+        SupabaseSessionState supabaseState)
     {
         _service         = service;
         _salesService    = salesService;
@@ -107,6 +111,7 @@ public class MainForm : Form
         _usageRepo       = usageRepo;
         _currentUser     = currentUser;
         _appSettings     = appSettings;
+        _supabaseState   = supabaseState;
 
         Text = "EduShop 관리 프로그램";
         Width = 1200;
@@ -115,6 +120,7 @@ public class MainForm : Form
 
         InitializeControls();
         InitializeMenu();
+        InitializeStatusStrip();
         
         LoadProducts();
 
@@ -378,6 +384,15 @@ public class MainForm : Form
         _ctxMoreMenu.Items.Add("카드 관리", null, (_, _) => OpenCardListForm());
     }
 
+    private void InitializeStatusStrip()
+    {
+        _statusStrip = new StatusStrip();
+        _dbStatusLabel = new ToolStripStatusLabel();
+        _statusStrip.Items.Add(_dbStatusLabel);
+        Controls.Add(_statusStrip);
+        UpdateDatabaseStatus();
+    }
+
 
     private void InitializeMenu()
     {
@@ -460,12 +475,16 @@ public class MainForm : Form
             (_, _) => OpenCodeMaster());
         var mnuDbBackup = new ToolStripMenuItem("데이터베이스 백업/복원...", null,
             (_, _) => OpenDbBackup());
+        var mnuSupabaseSettings = new ToolStripMenuItem("Supabase 설정...", null,
+            (_, _) => OpenSupabaseSettings());
 
         _toolsMenu.DropDownItems.AddRange(new ToolStripItem[]
         {
             mnuCodeMaster,
             new ToolStripSeparator(),
-            mnuDbBackup
+            mnuDbBackup,
+            new ToolStripSeparator(),
+            mnuSupabaseSettings
         });
 
         // ── 도움말(H) ────────────────────────────────
@@ -574,8 +593,15 @@ public class MainForm : Form
     // ── 관리: 다른 폼 열기 ───────────────────────
     private void OpenCustomerListForm()
     {
-        var f = new CustomerListForm(_customerService, _currentUser);
+        var f = new CustomerListForm(_customerService, _currentUser, _supabaseState);
         ShowEmbeddedForm(f);
+    }
+
+    private void OpenSupabaseSettings()
+    {
+        using var dlg = new SupabaseSettingsForm(_supabaseState);
+        dlg.ShowDialog(this);
+        UpdateDatabaseStatus();
     }
 
     private void OpenAccountListForm()
@@ -1191,5 +1217,11 @@ public class MainForm : Form
         _contentPanel.Controls.Clear();
         _contentPanel.Controls.Add(form);
         form.Show();
+    }
+
+    private void UpdateDatabaseStatus()
+    {
+        var label = _supabaseState.IsSupabaseActive ? "DB: Supabase" : "DB: Local";
+        _dbStatusLabel.Text = label;
     }
 }
