@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="QuestPDF" Version="2025.7.4" />
+    <PackageReference Include="supabase" Version="0.10.0" />
   </ItemGroup>
 
   <PropertyGroup>

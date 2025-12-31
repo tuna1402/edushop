@@ -5,7 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using EduShop.Core.Common;
+using EduShop.Core.Infrastructure.Supabase;
 using EduShop.Core.Models;
+using EduShop.Core.Repositories.Remote;
 using EduShop.Core.Services;
 
 namespace EduShop.WinForms;
@@ -14,6 +16,7 @@ public class CustomerListForm : Form
 {
     private readonly CustomerService _customerService;
     private readonly UserContext     _currentUser;
+    private readonly SupabaseSessionState _supabaseState;
 
     private TextBox      _txtName = null!;
     private Button       _btnSearch = null!;
@@ -42,10 +45,11 @@ public class CustomerListForm : Form
         public string? Memo        { get; set; }
     }
 
-    public CustomerListForm(CustomerService customerService, UserContext currentUser)
+    public CustomerListForm(CustomerService customerService, UserContext currentUser, SupabaseSessionState supabaseState)
     {
         _customerService = customerService;
         _currentUser     = currentUser;
+        _supabaseState   = supabaseState;
 
         Text = "고객 관리";
         Width = 900;
@@ -260,10 +264,42 @@ public class CustomerListForm : Form
         ReloadData();
     }
 
-    private void ReloadData()
+    private async void ReloadData()
     {
-        _customers = _customerService.GetAll();
+        _customers = await LoadCustomersAsync();
         ApplyFilter();
+    }
+
+    private async Task<List<Customer>> LoadCustomersAsync()
+    {
+        if (!_supabaseState.IsSupabaseActive)
+        {
+            SetRemoteMode(false);
+            return _customerService.GetAll();
+        }
+
+        try
+        {
+            SetRemoteMode(true);
+            var client = await SupabaseClientFactory.CreateAsync(_supabaseState.Config, _supabaseState.AccessToken);
+            var repo = new RemoteCustomerRepository(client);
+            return await repo.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Supabase 고객 조회 실패: {ex.Message}", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            SetRemoteMode(false);
+            return _customerService.GetAll();
+        }
+    }
+
+    private void SetRemoteMode(bool enabled)
+    {
+        _btnNew.Enabled = !enabled;
+        _btnEdit.Enabled = !enabled;
+        _btnDelete.Enabled = !enabled;
+        _btnImportCsv.Enabled = !enabled;
     }
 
     private void ApplyFilter()
@@ -305,6 +341,13 @@ public class CustomerListForm : Form
 
     private void CreateNew()
     {
+        if (_supabaseState.IsSupabaseActive)
+        {
+            MessageBox.Show("Supabase 연결 모드에서는 고객 등록을 할 수 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         using var dlg = new CustomerEditForm(_customerService, _currentUser, null);
         if (dlg.ShowDialog(this) == DialogResult.OK)
         {
@@ -314,6 +357,13 @@ public class CustomerListForm : Form
 
     private void EditSelected()
     {
+        if (_supabaseState.IsSupabaseActive)
+        {
+            MessageBox.Show("Supabase 연결 모드에서는 고객 수정을 할 수 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         var c = GetSelected();
         if (c == null) return;
 
@@ -326,6 +376,13 @@ public class CustomerListForm : Form
 
     private void DeleteSelected()
     {
+        if (_supabaseState.IsSupabaseActive)
+        {
+            MessageBox.Show("Supabase 연결 모드에서는 고객 삭제를 할 수 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         var c = GetSelected();
         if (c == null) return;
 
@@ -486,6 +543,13 @@ public class CustomerListForm : Form
 
     private void ImportCustomersCsv()
     {
+        if (_supabaseState.IsSupabaseActive)
+        {
+            MessageBox.Show("Supabase 연결 모드에서는 고객 Import를 할 수 없습니다.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         using var ofd = new OpenFileDialog
         {
             Filter = "CSV 파일 (*.csv)|*.csv|모든 파일 (*.*)|*.*"

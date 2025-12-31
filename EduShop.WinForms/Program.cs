@@ -6,6 +6,7 @@ using EduShop.Core.Common;
 using EduShop.Core.Infrastructure;
 using EduShop.Core.Repositories;
 using EduShop.Core.Services;
+using EduShop.WinForms.Infrastructure;
 using QuestPDF.Infrastructure;
 
 namespace EduShop.WinForms;
@@ -19,6 +20,7 @@ internal static class Program
         {
             ApplicationConfiguration.Initialize();
             var appSettings = SettingsStorage.Load();
+            var supabaseConfig = LocalSettingsStore.LoadSupabaseConfig();
             QuestPDF.Settings.License = LicenseType.Community;
 
             // 1) Windows 로컬 경로: %LOCALAPPDATA%\EduShop\edushop.db
@@ -81,7 +83,8 @@ internal static class Program
                 logRepo,
                 accountLogRepo,
                 currentUser,
-                appSettings));
+                appSettings,
+                new SupabaseSessionState(supabaseConfig)));
         }
         catch (Exception ex)
         {
