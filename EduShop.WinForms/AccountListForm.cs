@@ -1079,11 +1079,6 @@ public class AccountListForm : Form
             })
             .ToList();
 
-        if (options.Count == 0)
-        {
-            return null;
-        }
-
         var cbo = new ComboBox
         {
             Left = lbl.Right + 5,
@@ -1095,14 +1090,14 @@ public class AccountListForm : Form
             ValueMember = nameof(CardOption.CardId)
         };
 
-        if (initialCardId.HasValue && options.Any(o => o.CardId == initialCardId.Value))
+        if (cbo.Items.Count == 0)
         {
-            cbo.SelectedValue = initialCardId.Value;
+            MessageBox.Show("등록된 카드가 없습니다. 먼저 카드 정보를 등록하세요.", "안내",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return null;
         }
-        else if (options.Count > 0)
-        {
-            cbo.SelectedIndex = 0;
-        }
+
+        TrySetComboSelection(cbo, initialCardId);
 
         var btnOk = new Button
         {
@@ -1134,6 +1129,21 @@ public class AccountListForm : Form
 
         var selectedId = (long)cbo.SelectedValue!;
         return _cards.FirstOrDefault(c => c.CardId == selectedId);
+    }
+
+    private static void TrySetComboSelection(ComboBox combo, long? initialCardId)
+    {
+        if (combo.Items.Count == 0)
+            return;
+
+        if (initialCardId.HasValue)
+        {
+            combo.SelectedValue = initialCardId.Value;
+            if (combo.SelectedIndex >= 0)
+                return;
+        }
+
+        combo.SelectedIndex = 0;
     }
 
     private class CardOption
