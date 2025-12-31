@@ -1,3 +1,4 @@
+using System.Linq;
 using EduShop.Core.Common;
 using EduShop.Core.Models;
 using EduShop.Core.Repositories;
@@ -8,6 +9,7 @@ public class ProductService
 {
     private readonly ProductRepository _productRepo;
     private readonly AuditLogRepository _logRepo;
+    private static readonly int[] AllowedDurations = { 1, 2, 3, 4, 5, 6, 12 };
 
     public ProductService(ProductRepository productRepo, AuditLogRepository logRepo)
     {
@@ -19,6 +21,7 @@ public class ProductService
 
     public long Create(Product product, UserContext user)
     {
+        ValidateProduct(product);
         var newId = _productRepo.Insert(product, user.UserName);
 
         _logRepo.Insert(new AuditLogEntry
@@ -62,6 +65,7 @@ public class ProductService
         if (existing == null)
             throw new InvalidOperationException($"상품(ID={product.ProductId})을(를) 찾을 수 없습니다.");
 
+        ValidateProduct(product);
         _productRepo.Update(product, user.UserName);
 
         _logRepo.Insert(new AuditLogEntry
@@ -145,5 +149,24 @@ public class ProductService
     public List<AuditLogEntry> GetLogsForProduct(long productId)
     {
         return _logRepo.GetForProduct(productId);
+    }
+
+    private static void ValidateProduct(Product product)
+    {
+        if (string.IsNullOrWhiteSpace(product.ProductCode))
+            throw new InvalidOperationException("상품코드를 입력하세요.");
+        if (string.IsNullOrWhiteSpace(product.ProductName))
+            throw new InvalidOperationException("상품명을 입력하세요.");
+        if (!AllowedDurations.Contains(product.DurationMonths))
+            throw new InvalidOperationException("기간(개월) 옵션을 선택하세요.");
+        if (product.SalePriceKrw <= 0)
+            throw new InvalidOperationException("판매가(원)를 입력하세요.");
+        if (product.PurchasePriceUsd.HasValue && product.PurchasePriceUsd.Value < 0)
+            throw new InvalidOperationException("매입가(USD)는 0 이상이어야 합니다.");
+        if (product.PurchasePriceKrw.HasValue && product.PurchasePriceKrw.Value < 0)
+            throw new InvalidOperationException("매입가(원)는 0 이상이어야 합니다.");
+
+        if (product.Status == "STOPPED")
+            product.Status = "INACTIVE";
     }
 }

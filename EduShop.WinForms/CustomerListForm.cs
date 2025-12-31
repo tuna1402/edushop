@@ -32,10 +32,12 @@ public class CustomerListForm : Form
     private class CustomerRow
     {
         public long   CustomerId   { get; set; }
-        public string CustomerName { get; set; } = "";
+        public string SchoolName { get; set; } = "";
         public string? ContactName { get; set; }
-        public string? Phone       { get; set; }
-        public string? Email       { get; set; }
+        public string? Phone1      { get; set; }
+        public string? Phone2      { get; set; }
+        public string? Email1      { get; set; }
+        public string? Email2      { get; set; }
         public string? Address     { get; set; }
         public string? Memo        { get; set; }
     }
@@ -58,7 +60,7 @@ public class CustomerListForm : Form
     {
         var lblName = new Label
         {
-            Text = "고객명",
+            Text = "학교명",
             Left = 10,
             Top  = 15,
             Width = 60
@@ -135,8 +137,8 @@ public class CustomerListForm : Form
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "고객명",
-            DataPropertyName = "CustomerName",
+            HeaderText = "학교명",
+            DataPropertyName = "SchoolName",
             Width = 200
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
@@ -147,14 +149,32 @@ public class CustomerListForm : Form
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "전화",
-            DataPropertyName = "Phone",
+            HeaderText = "전화1",
+            DataPropertyName = "Phone1",
             Width = 120
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "이메일",
-            DataPropertyName = "Email",
+            HeaderText = "전화2",
+            DataPropertyName = "Phone2",
+            Width = 120
+        });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "이메일1",
+            DataPropertyName = "Email1",
+            Width = 180
+        });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "이메일2",
+            DataPropertyName = "Email2",
+            Width = 180
+        });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "주소",
+            DataPropertyName = "Address",
             Width = 180
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
@@ -254,19 +274,21 @@ public class CustomerListForm : Form
         if (!string.IsNullOrEmpty(name))
         {
             query = query.Where(c =>
-                c.CustomerName.Contains(name, StringComparison.OrdinalIgnoreCase));
+                c.SchoolName.Contains(name, StringComparison.OrdinalIgnoreCase));
         }
 
         var list = query
-            .OrderBy(c => c.CustomerName)
+            .OrderBy(c => c.SchoolName)
             .ThenBy(c => c.CustomerId)
             .Select(c => new CustomerRow
             {
                 CustomerId   = c.CustomerId,
-                CustomerName = c.CustomerName,
+                SchoolName   = c.SchoolName,
                 ContactName  = c.ContactName,
-                Phone        = c.Phone,
-                Email        = c.Email,
+                Phone1       = c.Phone1,
+                Phone2       = c.Phone2,
+                Email1       = c.Email1,
+                Email2       = c.Email2,
                 Address      = c.Address,
                 Memo         = c.Memo
             })
@@ -308,7 +330,7 @@ public class CustomerListForm : Form
         if (c == null) return;
 
         var result = MessageBox.Show(
-            $"고객 [{c.CustomerName}] 을(를) 삭제(비활성) 하시겠습니까?",
+            $"고객 [{c.SchoolName}] 을(를) 삭제(비활성) 하시겠습니까?",
             "확인",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
@@ -371,6 +393,14 @@ public class CustomerListForm : Form
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
+    private static string GetCsvValue(IReadOnlyList<string> cols, IReadOnlyDictionary<string, int> columnMap, string columnName)
+    {
+        if (!columnMap.TryGetValue(columnName, out var index))
+            return "";
+
+        return index >= 0 && index < cols.Count ? cols[index].Trim() : "";
+    }
+
     private void ExportCustomersCsv(bool onlySelected = false)
     {
         List<CustomerRow> rows;
@@ -420,20 +450,24 @@ public class CustomerListForm : Form
                 new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 
             writer.WriteLine(string.Join(",",
-                "CustomerName",
+                "SchoolName",
                 "ContactName",
-                "Email",
-                "Phone",
+                "Phone1",
+                "Phone2",
+                "Email1",
+                "Email2",
                 "Address",
                 "Memo"));
 
             foreach (var row in rows)
             {
                 var line = string.Join(",",
-                    EscapeCsv(row.CustomerName ?? ""),
+                    EscapeCsv(row.SchoolName ?? ""),
                     EscapeCsv(row.ContactName ?? ""),
-                    EscapeCsv(row.Email ?? ""),
-                    EscapeCsv(row.Phone ?? ""),
+                    EscapeCsv(row.Phone1 ?? ""),
+                    EscapeCsv(row.Phone2 ?? ""),
+                    EscapeCsv(row.Email1 ?? ""),
+                    EscapeCsv(row.Email2 ?? ""),
                     EscapeCsv(row.Address ?? ""),
                     EscapeCsv(row.Memo ?? ""));
 
@@ -477,16 +511,20 @@ public class CustomerListForm : Form
             }
 
             var headerCols = SplitCsvLine(header);
-            if (headerCols.Count == 0 || !headerCols[0].Equals("CustomerName", StringComparison.OrdinalIgnoreCase))
+            var columnMap = headerCols
+                .Select((name, index) => new { Name = name.Trim(), Index = index })
+                .ToDictionary(x => x.Name, x => x.Index, StringComparer.OrdinalIgnoreCase);
+
+            if (!columnMap.ContainsKey("SchoolName") && !columnMap.ContainsKey("CustomerName"))
             {
-                MessageBox.Show("헤더 형식이 예상과 다릅니다. (첫 컬럼은 CustomerName이어야 합니다.)", "오류",
+                MessageBox.Show("헤더 형식이 예상과 다릅니다. (SchoolName 또는 CustomerName 컬럼이 필요합니다.)", "오류",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             int lineNo = 1;
             _customers = _customerService.GetAll();
-            var byName = _customers.ToDictionary(c => c.CustomerName, StringComparer.OrdinalIgnoreCase);
+            var byName = _customers.ToDictionary(c => c.SchoolName, StringComparer.OrdinalIgnoreCase);
 
             while (!reader.EndOfStream)
             {
@@ -497,45 +535,53 @@ public class CustomerListForm : Form
 
                 var cols = SplitCsvLine(line);
 
-                string customerName = cols.ElementAtOrDefault(0)?.Trim() ?? "";
-                string contactName  = cols.ElementAtOrDefault(1)?.Trim() ?? "";
-                string email        = cols.ElementAtOrDefault(2)?.Trim() ?? "";
-                string phone        = cols.ElementAtOrDefault(3)?.Trim() ?? "";
-                string address      = cols.ElementAtOrDefault(4)?.Trim() ?? "";
-                string memo         = cols.ElementAtOrDefault(5) ?? "";
+                string schoolName  = GetCsvValue(cols, columnMap, "SchoolName");
+                if (string.IsNullOrWhiteSpace(schoolName))
+                    schoolName = GetCsvValue(cols, columnMap, "CustomerName");
+                string contactName = GetCsvValue(cols, columnMap, "ContactName");
+                string phone1      = GetCsvValue(cols, columnMap, "Phone1");
+                string phone2      = GetCsvValue(cols, columnMap, "Phone2");
+                string email1      = GetCsvValue(cols, columnMap, "Email1");
+                string email2      = GetCsvValue(cols, columnMap, "Email2");
+                string address     = GetCsvValue(cols, columnMap, "Address");
+                string memo        = GetCsvValue(cols, columnMap, "Memo");
 
-                if (string.IsNullOrEmpty(customerName))
+                if (string.IsNullOrEmpty(schoolName))
                 {
-                    errors.Add($"라인 {lineNo}: CustomerName이 비어 있습니다.");
+                    errors.Add($"라인 {lineNo}: SchoolName이 비어 있습니다.");
                     skipped++;
                     continue;
                 }
 
                 try
                 {
-                    if (!byName.TryGetValue(customerName, out var existing))
+                    if (!byName.TryGetValue(schoolName, out var existing))
                     {
                         var c = new Customer
                         {
-                            CustomerName = customerName,
+                            SchoolName   = schoolName,
                             ContactName  = contactName,
-                            Email        = email,
-                            Phone        = phone,
+                            Phone1       = phone1,
+                            Phone2       = phone2,
+                            Email1       = email1,
+                            Email2       = email2,
                             Address      = address,
                             Memo         = memo
                         };
 
                         var newId = _customerService.Create(c, _currentUser);
                         c.CustomerId = newId;
-                        byName[customerName] = c;
+                        byName[schoolName] = c;
                         created++;
                     }
                     else
                     {
-                        existing.CustomerName = customerName;
+                        existing.SchoolName   = schoolName;
                         existing.ContactName  = contactName;
-                        existing.Email        = email;
-                        existing.Phone        = phone;
+                        existing.Phone1       = phone1;
+                        existing.Phone2       = phone2;
+                        existing.Email1       = email1;
+                        existing.Email2       = email2;
                         existing.Address      = address;
                         existing.Memo         = memo;
 

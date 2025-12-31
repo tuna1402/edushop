@@ -19,16 +19,24 @@ public class CustomerService
 
     public long Create(Customer customer, UserContext user)
     {
+        ValidateCustomer(customer);
         return _repo.Insert(customer, user.UserName);
     }
 
     public void Update(Customer customer, UserContext user)
     {
+        ValidateCustomer(customer);
         _repo.Update(customer, user.UserName);
     }
 
     public void SoftDelete(long id, UserContext user)
     {
         _repo.SoftDelete(id, user.UserName);
+    }
+
+    private static void ValidateCustomer(Customer customer)
+    {
+        if (string.IsNullOrWhiteSpace(customer.SchoolName))
+            throw new InvalidOperationException("학교명을 입력하세요.");
     }
 }

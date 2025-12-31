@@ -153,7 +153,7 @@ public class AccountReuseForm : Form
         _products  = _productService.GetAll();
 
         _cboCustomer.DataSource = _customers
-            .Select(c => new { c.CustomerId, Name = c.CustomerName })
+            .Select(c => new { c.CustomerId, Name = c.SchoolName })
             .ToList();
         _cboCustomer.DisplayMember = "Name";
         _cboCustomer.ValueMember   = "CustomerId";

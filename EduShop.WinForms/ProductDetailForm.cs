@@ -19,14 +19,10 @@ public partial class ProductDetailForm : Form
     private TextBox       _txtCode = null!;
     private TextBox       _txtName = null!;
     private TextBox       _txtPlan = null!;
-    private TextBox       _txtMonthlyUsd = null!;
-    private TextBox       _txtMonthlyKrw = null!;
-    private TextBox       _txtWholesale = null!;
-    private TextBox       _txtRetail = null!;
-    private TextBox       _txtPurchase = null!;
-    private CheckBox      _chkYearly = null!;
-    private NumericUpDown _numMinMonth = null!;
-    private NumericUpDown _numMaxMonth = null!;
+    private ComboBox      _cboDuration = null!;
+    private TextBox       _txtPurchaseUsd = null!;
+    private TextBox       _txtPurchaseKrw = null!;
+    private TextBox       _txtSaleKrw = null!;
     private ComboBox      _cboStatus = null!;
     private TextBox       _txtRemark = null!;
     private Button        _btnSave = null!;
@@ -109,120 +105,68 @@ public partial class ProductDetailForm : Form
         };
         top += rowHeight;
 
-        // 월 구독료 USD / KRW
-        var lblMonthlyUsd = new Label
-        {
-            Text  = "월 구독료(USD)",
-            Left  = leftLabel,
-            Top   = top + 4,
-            Width = 90
-        };
-        _txtMonthlyUsd = new TextBox
-        {
-            Left  = leftInput,
-            Top   = top,
-            Width = 100
-        };
-
-        var lblMonthlyKrw = new Label
-        {
-            Text  = "월 구독료(원)",
-            Left  = _txtMonthlyUsd.Right + 20,
-            Top   = top + 4,
-            Width = 90
-        };
-        _txtMonthlyKrw = new TextBox
-        {
-            Left  = lblMonthlyKrw.Right + 5,
-            Top   = top,
-            Width = 120
-        };
-        top += rowHeight;
-
-        // 도매가 / 소매가 / 매입가
-        var lblWholesale = new Label
-        {
-            Text  = "도매가",
-            Left  = leftLabel,
-            Top   = top + 4,
-            Width = 90
-        };
-        _txtWholesale = new TextBox
-        {
-            Left  = leftInput,
-            Top   = top,
-            Width = 100
-        };
-
-        var lblRetail = new Label
-        {
-            Text  = "소매가",
-            Left  = _txtWholesale.Right + 20,
-            Top   = top + 4,
-            Width = 60
-        };
-        _txtRetail = new TextBox
-        {
-            Left  = lblRetail.Right + 5,
-            Top   = top,
-            Width = 100
-        };
-
-        var lblPurchase = new Label
-        {
-            Text  = "매입가",
-            Left  = _txtRetail.Right + 20,
-            Top   = top + 4,
-            Width = 60
-        };
-        _txtPurchase = new TextBox
-        {
-            Left  = lblPurchase.Right + 5,
-            Top   = top,
-            Width = 100
-        };
-        top += rowHeight;
-
-        // 연 구독 / 기간(개월)
-        _chkYearly = new CheckBox
-        {
-            Text  = "연 구독 가능",
-            Left  = leftInput,
-            Top   = top + 2,
-            Width = 120
-        };
-
-        var lblMinMonth = new Label
+        // 기간(개월)
+        var lblDuration = new Label
         {
             Text  = "기간(개월)",
-            Left  = _chkYearly.Right + 20,
+            Left  = leftLabel,
             Top   = top + 4,
-            Width = 70
+            Width = 90
         };
-        _numMinMonth = new NumericUpDown
+        _cboDuration = new ComboBox
         {
-            Left  = lblMinMonth.Right + 5,
+            Left  = leftInput,
             Top   = top,
-            Width = 60,
-            Minimum = 1,
-            Maximum = 120,
-            Value   = 1
+            Width = 120,
+            DropDownStyle = ComboBoxStyle.DropDownList
         };
-        var lblTilde = new Label
+        _cboDuration.Items.AddRange(new object[] { 1, 2, 3, 4, 5, 6, 12 });
+        _cboDuration.SelectedIndex = 0;
+        top += rowHeight;
+
+        // 매입가 USD / KRW
+        var lblPurchaseUsd = new Label
         {
-            Text  = "~",
-            Left  = _numMinMonth.Right + 5,
+            Text  = "매입가(USD)",
+            Left  = leftLabel,
             Top   = top + 4,
-            Width = 15
+            Width = 90
         };
-        _numMaxMonth = new NumericUpDown
+        _txtPurchaseUsd = new TextBox
         {
-            Left  = lblTilde.Right + 5,
+            Left  = leftInput,
             Top   = top,
-            Width = 60,
-            Minimum = 1,
-            Maximum = 120,
-            Value   = 12
+            Width = 100
+        };
+
+        var lblPurchaseKrw = new Label
+        {
+            Text  = "매입가(원)",
+            Left  = _txtPurchaseUsd.Right + 20,
+            Top   = top + 4,
+            Width = 90
+        };
+        _txtPurchaseKrw = new TextBox
+        {
+            Left  = lblPurchaseKrw.Right + 5,
+            Top   = top,
+            Width = 120
+        };
+        top += rowHeight;
+
+        // 판매가(원)
+        var lblSaleKrw = new Label
+        {
+            Text  = "판매가(원)",
+            Left  = leftLabel,
+            Top   = top + 4,
+            Width = 90
+        };
+        _txtSaleKrw = new TextBox
+        {
+            Left  = leftInput,
+            Top   = top,
+            Width = 120
         };
         top += rowHeight;
 
@@ -241,9 +185,8 @@ public partial class ProductDetailForm : Form
             Width = 140,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        _cboStatus.Items.Add("ACTIVE");
-        _cboStatus.Items.Add("INACTIVE");
-        _cboStatus.Items.Add("STOPPED");
+        _cboStatus.Items.Add(new StatusOption("ACTIVE", "판매중"));
+        _cboStatus.Items.Add(new StatusOption("INACTIVE", "품절"));
         _cboStatus.SelectedIndex = 0;
         top += rowHeight;
 
@@ -343,21 +286,14 @@ public partial class ProductDetailForm : Form
         Controls.Add(_txtName);
         Controls.Add(lblPlan);
         Controls.Add(_txtPlan);
-        Controls.Add(lblMonthlyUsd);
-        Controls.Add(_txtMonthlyUsd);
-        Controls.Add(lblMonthlyKrw);
-        Controls.Add(_txtMonthlyKrw);
-        Controls.Add(lblWholesale);
-        Controls.Add(_txtWholesale);
-        Controls.Add(lblRetail);
-        Controls.Add(_txtRetail);
-        Controls.Add(lblPurchase);
-        Controls.Add(_txtPurchase);
-        Controls.Add(_chkYearly);
-        Controls.Add(lblMinMonth);
-        Controls.Add(_numMinMonth);
-        Controls.Add(lblTilde);
-        Controls.Add(_numMaxMonth);
+        Controls.Add(lblDuration);
+        Controls.Add(_cboDuration);
+        Controls.Add(lblPurchaseUsd);
+        Controls.Add(_txtPurchaseUsd);
+        Controls.Add(lblPurchaseKrw);
+        Controls.Add(_txtPurchaseKrw);
+        Controls.Add(lblSaleKrw);
+        Controls.Add(_txtSaleKrw);
         Controls.Add(lblStatus);
         Controls.Add(_cboStatus);
         Controls.Add(lblRemark);
@@ -375,28 +311,31 @@ public partial class ProductDetailForm : Form
     {
         if (_product == null)
         {
-            _numMinMonth.Value   = 1;
-            _numMaxMonth.Value   = 12;
-            _chkYearly.Checked   = true;
-            _cboStatus.SelectedItem = "ACTIVE";
+            _cboDuration.SelectedIndex = 0;
+            _cboStatus.SelectedIndex = 0;
             return;
         }
 
         _txtCode.Text       = _product.ProductCode;
         _txtName.Text       = _product.ProductName;
         _txtPlan.Text       = _product.PlanName;
-        _txtMonthlyUsd.Text = _product.MonthlyFeeUsd.ToString() ?? "";
-        _txtMonthlyKrw.Text = _product.MonthlyFeeKrw.ToString() ?? "";
-        _txtWholesale.Text  = _product.WholesalePrice.ToString(CultureInfo.InvariantCulture);
-        _txtRetail.Text     = _product.RetailPrice.ToString(CultureInfo.InvariantCulture);
-        _txtPurchase.Text   = _product.PurchasePrice.ToString(CultureInfo.InvariantCulture);
-        _chkYearly.Checked  = _product.YearlyAvailable;
-        _numMinMonth.Value  = _product.MinMonth;
-        _numMaxMonth.Value  = _product.MaxMonth;
+        _txtPurchaseUsd.Text = _product.PurchasePriceUsd?.ToString(CultureInfo.InvariantCulture) ?? "";
+        _txtPurchaseKrw.Text = _product.PurchasePriceKrw?.ToString(CultureInfo.InvariantCulture) ?? "";
+        _txtSaleKrw.Text     = _product.SalePriceKrw.ToString(CultureInfo.InvariantCulture);
         _txtRemark.Text     = _product.Remark ?? "";
 
-        var idx = _cboStatus.Items.IndexOf(_product.Status);
-        _cboStatus.SelectedIndex = idx >= 0 ? idx : 0;
+        for (int i = 0; i < _cboDuration.Items.Count; i++)
+        {
+            if (_cboDuration.Items[i] is int value && value == _product.DurationMonths)
+            {
+                _cboDuration.SelectedIndex = i;
+                break;
+            }
+        }
+
+        var statusItem = _cboStatus.Items.Cast<StatusOption?>()
+            .FirstOrDefault(item => item?.Value == _product.Status);
+        _cboStatus.SelectedItem = statusItem ?? _cboStatus.Items[0];
     }
 
     private void LoadLogs()
@@ -447,24 +386,26 @@ public partial class ProductDetailForm : Form
             return;
         }
 
-        int minMonth = (int)_numMinMonth.Value;
-        int maxMonth = (int)_numMaxMonth.Value;
-
-        if (minMonth <= 0 || maxMonth <= 0 || minMonth > maxMonth)
+        if (_cboDuration.SelectedItem is not int durationMonths)
         {
-            MessageBox.Show("기간(개월) 범위를 확인하세요.", "오류",
+            MessageBox.Show("기간(개월) 옵션을 선택하세요.", "오류",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
-            _numMinMonth.Focus();
+            _cboDuration.Focus();
             return;
         }
 
-        double monthlyUsd  = ParseDouble(_txtMonthlyUsd.Text);
-        long   monthlyKrw  = ParseLong(_txtMonthlyKrw.Text);
-        long   wholesale   = ParseLong(_txtWholesale.Text);
-        long   retail      = ParseLong(_txtRetail.Text);
-        long   purchase    = ParseLong(_txtPurchase.Text);
-        bool   yearlyAvail = _chkYearly.Checked;
-        string status      = (_cboStatus.SelectedItem as string) ?? "ACTIVE";
+        var purchaseUsd = ParseNullableDouble(_txtPurchaseUsd.Text);
+        var purchaseKrw = ParseNullableLong(_txtPurchaseKrw.Text);
+        var saleKrw = ParseLong(_txtSaleKrw.Text);
+        var status = (_cboStatus.SelectedItem as StatusOption)?.Value ?? "ACTIVE";
+
+        if (saleKrw <= 0)
+        {
+            MessageBox.Show("판매가(원)를 입력하세요.", "오류",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            _txtSaleKrw.Focus();
+            return;
+        }
 
         if (_product == null)
         {
@@ -473,14 +414,10 @@ public partial class ProductDetailForm : Form
                 ProductCode     = code,
                 ProductName     = name,
                 PlanName        = _txtPlan.Text.Trim(),
-                MonthlyFeeUsd   = monthlyUsd,
-                MonthlyFeeKrw   = monthlyKrw,
-                WholesalePrice  = wholesale,
-                RetailPrice     = retail,
-                PurchasePrice   = purchase,
-                YearlyAvailable = yearlyAvail,
-                MinMonth        = minMonth,
-                MaxMonth        = maxMonth,
+                DurationMonths  = durationMonths,
+                PurchasePriceUsd = purchaseUsd,
+                PurchasePriceKrw = purchaseKrw,
+                SalePriceKrw    = saleKrw,
                 Status          = status,
                 Remark          = _txtRemark.Text
             };
@@ -495,14 +432,10 @@ public partial class ProductDetailForm : Form
             _product.ProductCode     = code;
             _product.ProductName     = name;
             _product.PlanName        = _txtPlan.Text.Trim();
-            _product.MonthlyFeeUsd   = monthlyUsd;
-            _product.MonthlyFeeKrw   = monthlyKrw;
-            _product.WholesalePrice  = wholesale;
-            _product.RetailPrice     = retail;
-            _product.PurchasePrice   = purchase;
-            _product.YearlyAvailable = yearlyAvail;
-            _product.MinMonth        = minMonth;
-            _product.MaxMonth        = maxMonth;
+            _product.DurationMonths  = durationMonths;
+            _product.PurchasePriceUsd = purchaseUsd;
+            _product.PurchasePriceKrw = purchaseKrw;
+            _product.SalePriceKrw    = saleKrw;
             _product.Status          = status;
             _product.Remark          = _txtRemark.Text;
 
@@ -520,19 +453,6 @@ public partial class ProductDetailForm : Form
     // ─────────────────────────────────────
     // 숫자 파싱 유틸
     // ─────────────────────────────────────
-    private static double ParseDouble(string text)
-    {
-        var t = text.Trim();
-        if (string.IsNullOrEmpty(t)) return 0;
-
-        if (double.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
-            return v;
-        if (double.TryParse(t, NumberStyles.Any, CultureInfo.CurrentCulture, out v))
-            return v;
-
-        return 0;
-    }
-
     private static long ParseLong(string text)
     {
         var t = text.Trim();
@@ -544,5 +464,44 @@ public partial class ProductDetailForm : Form
             return v;
 
         return 0;
+    }
+
+    private static double? ParseNullableDouble(string text)
+    {
+        var t = text.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+
+        if (double.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
+            return v;
+        if (double.TryParse(t, NumberStyles.Any, CultureInfo.CurrentCulture, out v))
+            return v;
+
+        return null;
+    }
+
+    private static long? ParseNullableLong(string text)
+    {
+        var t = text.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+
+        if (long.TryParse(t, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
+            return v;
+        if (long.TryParse(t, NumberStyles.Any, CultureInfo.CurrentCulture, out v))
+            return v;
+
+        return null;
+    }
+
+    private sealed class StatusOption
+    {
+        public StatusOption(string value, string text)
+        {
+            Value = value;
+            Text = text;
+        }
+
+        public string Value { get; }
+        public string Text { get; }
+        public override string ToString() => Text;
     }
 }

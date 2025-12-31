@@ -66,16 +66,25 @@ public class MainForm : Form
         public string ProductCode     { get; set; } = "";
         public string ProductName     { get; set; } = "";
         public string PlanName        { get; set; } = "";
-        public double MonthlyFeeUsd   { get; set; }
-        public long   MonthlyFeeKrw   { get; set; }
-        public long   WholesalePrice  { get; set; }
-        public long   RetailPrice     { get; set; }
-        public long   PurchasePrice   { get; set; }
-        public bool   YearlyAvailable { get; set; }
-        public int    MinMonth        { get; set; }
-        public int    MaxMonth        { get; set; }
-        public string Status          { get; set; } = "";
+        public int    DurationMonths  { get; set; }
+        public double? PurchasePriceUsd { get; set; }
+        public long?  PurchasePriceKrw { get; set; }
+        public long   SalePriceKrw    { get; set; }
+        public string StatusLabel     { get; set; } = "";
         public string? Remark         { get; set; }
+    }
+
+    private sealed class StatusOption
+    {
+        public StatusOption(string value, string text)
+        {
+            Value = value;
+            Text = text;
+        }
+
+        public string Value { get; }
+        public string Text { get; }
+        public override string ToString() => Text;
     }
 
     public MainForm(
@@ -150,10 +159,9 @@ public class MainForm : Form
             Width = 120,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
-        _cboStatus.Items.Add("");          // 전체
-        _cboStatus.Items.Add("ACTIVE");
-        _cboStatus.Items.Add("INACTIVE");
-        _cboStatus.Items.Add("STOPPED");
+        _cboStatus.Items.Add(new StatusOption("", "전체"));
+        _cboStatus.Items.Add(new StatusOption("ACTIVE", "판매중"));
+        _cboStatus.Items.Add(new StatusOption("INACTIVE", "품절"));
         _cboStatus.SelectedIndex = 0;
 
         _btnSearch = new Button
@@ -230,61 +238,35 @@ public class MainForm : Form
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "월 구독료(USD)",
-            DataPropertyName = "MonthlyFeeUsd",
-            Width = 110,
+            HeaderText = "기간(개월)",
+            DataPropertyName = "DurationMonths",
+            Width = 80
+        });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            HeaderText = "매입가(USD)",
+            DataPropertyName = "PurchasePriceUsd",
+            Width = 90,
             DefaultCellStyle = { Format = "N2" }
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "월 구독료(원)",
-            DataPropertyName = "MonthlyFeeKrw",
-            Width = 110,
-            DefaultCellStyle = { Format = "N0" }
-        });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            HeaderText = "도매가",
-            DataPropertyName = "WholesalePrice",
+            HeaderText = "매입가(원)",
+            DataPropertyName = "PurchasePriceKrw",
             Width = 90,
             DefaultCellStyle = { Format = "N0" }
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
-            HeaderText = "소매가",
-            DataPropertyName = "RetailPrice",
+            HeaderText = "판매가(원)",
+            DataPropertyName = "SalePriceKrw",
             Width = 90,
             DefaultCellStyle = { Format = "N0" }
-        });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            HeaderText = "매입가",
-            DataPropertyName = "PurchasePrice",
-            Width = 90,
-            DefaultCellStyle = { Format = "N0" }
-        });
-        _grid.Columns.Add(new DataGridViewCheckBoxColumn
-        {
-            HeaderText = "연 구독",
-            DataPropertyName = "YearlyAvailable",
-            Width = 70
-        });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            HeaderText = "개월(최소)",
-            DataPropertyName = "MinMonth",
-            Width = 70
-        });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn
-        {
-            HeaderText = "개월(최대)",
-            DataPropertyName = "MaxMonth",
-            Width = 70
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
         {
             HeaderText = "상태",
-            DataPropertyName = "Status",
+            DataPropertyName = "StatusLabel",
             Width = 80
         });
         _grid.Columns.Add(new DataGridViewTextBoxColumn
@@ -376,11 +358,10 @@ public class MainForm : Form
         // ── 그리드 우클릭 메뉴 ───────────────────────
         _ctxRowMenu = new ContextMenuStrip();
         _ctxRowMenu.Items.Add("상품 수정(&E)", null, (_, _) => EditProduct());
-        _ctxRowMenu.Items.Add("상품 삭제(상태 INACTIVE)", null, (_, _) => DeleteProduct());
+        _ctxRowMenu.Items.Add("상품 삭제(품절)", null, (_, _) => DeleteProduct());
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
-        _ctxRowMenu.Items.Add("상태: ACTIVE로 변경", null, (_, _) => SetStatusSelected("ACTIVE"));
-        _ctxRowMenu.Items.Add("상태: INACTIVE로 변경", null, (_, _) => SetStatusSelected("INACTIVE"));
-        _ctxRowMenu.Items.Add("상태: STOPPED로 변경", null, (_, _) => SetStatusSelected("STOPPED"));
+        _ctxRowMenu.Items.Add("상태: 판매중으로 변경", null, (_, _) => SetStatusSelected("ACTIVE"));
+        _ctxRowMenu.Items.Add("상태: 품절로 변경", null, (_, _) => SetStatusSelected("INACTIVE"));
         _ctxRowMenu.Items.Add(new ToolStripSeparator());
         _ctxRowMenu.Items.Add("선택 상품만 엑셀 다운로드", null, (_, _) => ExportProductsCsv(true));
 
@@ -731,8 +712,11 @@ public class MainForm : Form
 
         if (_cboStatus.SelectedIndex > 0)
         {
-            var status = (string)_cboStatus.SelectedItem!;
-            query = query.Where(p => p.Status == status);
+            var status = (_cboStatus.SelectedItem as StatusOption)?.Value;
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(p => p.Status == status);
+            }
         }
 
         var list = query
@@ -744,15 +728,11 @@ public class MainForm : Form
                 ProductCode     = p.ProductCode,
                 ProductName     = p.ProductName,
                 PlanName        = p.PlanName ?? "",
-                MonthlyFeeUsd   = p.MonthlyFeeUsd ?? 0d,
-                MonthlyFeeKrw   = p.MonthlyFeeKrw,
-                WholesalePrice  = p.WholesalePrice,
-                RetailPrice     = p.RetailPrice,
-                PurchasePrice   = p.PurchasePrice,
-                YearlyAvailable = p.YearlyAvailable,
-                MinMonth        = p.MinMonth,
-                MaxMonth        = p.MaxMonth,
-                Status          = p.Status,
+                DurationMonths  = p.DurationMonths,
+                PurchasePriceUsd = p.PurchasePriceUsd,
+                PurchasePriceKrw = p.PurchasePriceKrw,
+                SalePriceKrw    = p.SalePriceKrw,
+                StatusLabel     = GetStatusLabel(p.Status),
                 Remark          = p.Remark
             })
             .ToList();
@@ -813,7 +793,7 @@ public class MainForm : Form
 
         var result = MessageBox.Show(
             $"상품 [{selected.ProductCode}] {selected.ProductName} 을(를)\n" +
-            $"상태 INACTIVE로 변경하시겠습니까?",
+            $"상태 품절로 변경하시겠습니까?",
             "삭제(비활성) 확인",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
@@ -834,7 +814,7 @@ public class MainForm : Form
         if (selected.Status == newStatus) return;
 
         var result = MessageBox.Show(
-            $"상품 [{selected.ProductCode}] 상태를 '{selected.Status}' → '{newStatus}' 로 변경하시겠습니까?",
+            $"상품 [{selected.ProductCode}] 상태를 '{GetStatusLabel(selected.Status)}' → '{GetStatusLabel(newStatus)}' 로 변경하시겠습니까?",
             "상태 변경 확인",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
@@ -845,6 +825,16 @@ public class MainForm : Form
         selected.Status = newStatus;
         _service.Update(selected, _currentUser);
         LoadProducts();
+    }
+
+    private static string GetStatusLabel(string status)
+    {
+        return status == "ACTIVE" ? "판매중" : "품절";
+    }
+
+    private static string GetStatusValue(string label)
+    {
+        return label == "판매중" ? "ACTIVE" : "INACTIVE";
     }
 
     // ─────────────────────────────────────────────────────
@@ -907,12 +897,30 @@ public class MainForm : Form
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
+    private static string GetCsvValue(IReadOnlyList<string> cols, IReadOnlyDictionary<string, int> columnMap, string columnName)
+    {
+        if (!columnMap.TryGetValue(columnName, out var index))
+            return "";
+
+        return index >= 0 && index < cols.Count ? cols[index].Trim() : "";
+    }
+
     private static long ParseLongOrDefault(string? value, long defaultValue = 0)
     {
         if (string.IsNullOrWhiteSpace(value)) return defaultValue;
         if (long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
             return v;
         return defaultValue;
+    }
+
+    private static double? ParseDoubleOrDefault(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
+            return v;
+        if (double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out v))
+            return v;
+        return null;
     }
 
     private static int ParseIntOrDefault(string? value, int defaultValue = 0)
@@ -973,34 +981,22 @@ public class MainForm : Form
             writer.WriteLine(string.Join(",",
                 "ProductCode",
                 "ProductName",
-                "PlanName",
-                "MonthlyFeeUsd",
-                "MonthlyFeeKrw",
-                "WholesalePrice",
-                "RetailPrice",
-                "PurchasePrice",
-                "YearlyAvailable",
-                "MinMonth",
-                "MaxMonth",
-                "Status",
-                "Remark"));
+                "DurationMonths",
+                "PurchasePriceUsd",
+                "PurchasePriceKrw",
+                "SalePriceKrw",
+                "Status"));
 
             foreach (var row in rows)
             {
                 var line = string.Join(",",
                     EscapeCsv(row.ProductCode),
                     EscapeCsv(row.ProductName),
-                    EscapeCsv(row.PlanName),
-                    EscapeCsv(row.MonthlyFeeUsd.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.MonthlyFeeKrw.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.WholesalePrice.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.RetailPrice.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.PurchasePrice.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.YearlyAvailable ? "1" : "0"),
-                    EscapeCsv(row.MinMonth.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.MaxMonth.ToString(CultureInfo.InvariantCulture)),
-                    EscapeCsv(row.Status),
-                    EscapeCsv(row.Remark ?? "")
+                    EscapeCsv(row.DurationMonths.ToString(CultureInfo.InvariantCulture)),
+                    EscapeCsv(row.PurchasePriceUsd?.ToString(CultureInfo.InvariantCulture) ?? ""),
+                    EscapeCsv(row.PurchasePriceKrw?.ToString(CultureInfo.InvariantCulture) ?? ""),
+                    EscapeCsv(row.SalePriceKrw.ToString(CultureInfo.InvariantCulture)),
+                    EscapeCsv(GetStatusValue(row.StatusLabel))
                 );
 
                 writer.WriteLine(line);
@@ -1046,9 +1042,20 @@ public class MainForm : Form
             }
 
             var headerCols = SplitCsvLine(header);
-            if (headerCols.Count < 3 || !headerCols[0].Equals("ProductCode", StringComparison.OrdinalIgnoreCase))
+            var columnMap = headerCols
+                .Select((name, index) => new { Name = name.Trim(), Index = index })
+                .ToDictionary(x => x.Name, x => x.Index, StringComparer.OrdinalIgnoreCase);
+
+            if (!columnMap.ContainsKey("ProductCode"))
             {
-                MessageBox.Show("헤더 형식이 예상과 다릅니다. (첫 컬럼은 ProductCode여야 합니다.)", "오류",
+                MessageBox.Show("헤더 형식이 예상과 다릅니다. (ProductCode 컬럼이 필요합니다.)", "오류",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (!columnMap.ContainsKey("ProductName") || !columnMap.ContainsKey("DurationMonths"))
+            {
+                MessageBox.Show("헤더 형식이 예상과 다릅니다. (ProductName, DurationMonths 컬럼이 필요합니다.)", "오류",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -1066,19 +1073,14 @@ public class MainForm : Form
 
                 var cols = SplitCsvLine(line);
 
-                string productCode     = cols.ElementAtOrDefault(0)?.Trim() ?? "";
-                string productName     = cols.ElementAtOrDefault(1)?.Trim() ?? "";
-                string planName        = cols.ElementAtOrDefault(2)?.Trim() ?? "";
-                string monthlyUsdStr   = cols.ElementAtOrDefault(3)?.Trim() ?? "";
-                string monthlyKrwStr   = cols.ElementAtOrDefault(4)?.Trim() ?? "";
-                string wholesaleStr    = cols.ElementAtOrDefault(5)?.Trim() ?? "";
-                string retailStr       = cols.ElementAtOrDefault(6)?.Trim() ?? "";
-                string purchaseStr     = cols.ElementAtOrDefault(7)?.Trim() ?? "";
-                string yearlyStr       = cols.ElementAtOrDefault(8)?.Trim() ?? "";
-                string minMonthStr     = cols.ElementAtOrDefault(9)?.Trim() ?? "";
-                string maxMonthStr     = cols.ElementAtOrDefault(10)?.Trim() ?? "";
-                string statusStr       = cols.ElementAtOrDefault(11)?.Trim() ?? "";
-                string remark          = cols.ElementAtOrDefault(12) ?? "";
+                string productCode     = GetCsvValue(cols, columnMap, "ProductCode");
+                string productName     = GetCsvValue(cols, columnMap, "ProductName");
+                string durationStr     = GetCsvValue(cols, columnMap, "DurationMonths");
+                string purchaseUsdStr  = GetCsvValue(cols, columnMap, "PurchasePriceUsd");
+                string purchaseKrwStr  = GetCsvValue(cols, columnMap, "PurchasePriceKrw");
+                string saleKrwStr      = GetCsvValue(cols, columnMap, "SalePriceKrw");
+                string statusStr       = GetCsvValue(cols, columnMap, "Status");
+                string remark          = GetCsvValue(cols, columnMap, "Remark");
 
                 if (string.IsNullOrEmpty(productCode))
                 {
@@ -1094,19 +1096,15 @@ public class MainForm : Form
                     continue;
                 }
 
-                if (!double.TryParse(monthlyUsdStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var monthlyUsd))
-                    monthlyUsd = 0;
-
-                long monthlyKrw  = ParseLongOrDefault(monthlyKrwStr);
-                long wholesale   = ParseLongOrDefault(wholesaleStr);
-                long retail      = ParseLongOrDefault(retailStr);
-                long purchase    = ParseLongOrDefault(purchaseStr);
-                bool yearlyAvail = yearlyStr == "1" || yearlyStr.Equals("true", StringComparison.OrdinalIgnoreCase);
-
-                int minMonth = ParseIntOrDefault(minMonthStr, 1);
-                int maxMonth = ParseIntOrDefault(maxMonthStr, 12);
-
+                int durationMonths = ParseIntOrDefault(durationStr, 0);
+                var purchaseUsd = ParseDoubleOrDefault(purchaseUsdStr);
+                var purchaseKrw = string.IsNullOrWhiteSpace(purchaseKrwStr)
+                    ? (long?)null
+                    : ParseLongOrDefault(purchaseKrwStr);
+                long saleKrw = ParseLongOrDefault(saleKrwStr);
                 string status = string.IsNullOrWhiteSpace(statusStr) ? "ACTIVE" : statusStr;
+                if (status == "STOPPED")
+                    status = "INACTIVE";
 
                 try
                 {
@@ -1119,15 +1117,10 @@ public class MainForm : Form
                         {
                             ProductCode     = productCode,
                             ProductName     = productName,
-                            PlanName        = planName,
-                            MonthlyFeeUsd   = monthlyUsd,
-                            MonthlyFeeKrw   = monthlyKrw,
-                            WholesalePrice  = wholesale,
-                            RetailPrice     = retail,
-                            PurchasePrice   = purchase,
-                            YearlyAvailable = yearlyAvail,
-                            MinMonth        = minMonth,
-                            MaxMonth        = maxMonth,
+                            DurationMonths  = durationMonths,
+                            PurchasePriceUsd = purchaseUsd,
+                            PurchasePriceKrw = purchaseKrw,
+                            SalePriceKrw    = saleKrw,
                             Status          = status,
                             Remark          = remark
                         };
@@ -1138,15 +1131,10 @@ public class MainForm : Form
                     else
                     {
                         existing.ProductName     = productName;
-                        existing.PlanName        = planName;
-                        existing.MonthlyFeeUsd   = monthlyUsd;
-                        existing.MonthlyFeeKrw   = monthlyKrw;
-                        existing.WholesalePrice  = wholesale;
-                        existing.RetailPrice     = retail;
-                        existing.PurchasePrice   = purchase;
-                        existing.YearlyAvailable = yearlyAvail;
-                        existing.MinMonth        = minMonth;
-                        existing.MaxMonth        = maxMonth;
+                        existing.DurationMonths  = durationMonths;
+                        existing.PurchasePriceUsd = purchaseUsd;
+                        existing.PurchasePriceKrw = purchaseKrw;
+                        existing.SalePriceKrw    = saleKrw;
                         existing.Status          = status;
                         existing.Remark          = remark;
 

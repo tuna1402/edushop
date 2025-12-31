@@ -1280,7 +1280,7 @@ public class AccountListForm : Form
             writer.WriteLine(string.Join(",",
                 "Email",
                 "ProductCode",
-                "CustomerName",
+                "SchoolName",
                 "SubscriptionStartDate",
                 "SubscriptionEndDate",
                 "Status",
@@ -1299,7 +1299,7 @@ public class AccountListForm : Form
 
                 var customerName = acc.CustomerId.HasValue &&
                                    customerDict.TryGetValue(acc.CustomerId.Value, out var customer)
-                    ? customer.CustomerName
+                    ? customer.SchoolName
                     : "";
 
                 var line = string.Join(",",
@@ -1365,7 +1365,7 @@ public class AccountListForm : Form
             var products = _productService.GetAll();
             var productDict = products.ToDictionary(p => p.ProductCode, StringComparer.OrdinalIgnoreCase);
             var customers = _customerService.GetAll();
-            var customerDict = customers.ToDictionary(c => c.CustomerName, StringComparer.OrdinalIgnoreCase);
+            var customerDict = customers.ToDictionary(c => c.SchoolName, StringComparer.OrdinalIgnoreCase);
             var accountDict = _accountService
                 .GetAll()
                 .ToDictionary(a => a.Email, StringComparer.OrdinalIgnoreCase);
@@ -1395,7 +1395,7 @@ public class AccountListForm : Form
                     string.IsNullOrWhiteSpace(startStr) ||
                     string.IsNullOrWhiteSpace(endStr))
                 {
-                    errors.Add($"라인 {lineNo}: 필수 값(Email, ProductCode, CustomerName, 시작/만료일) 중 일부가 비어 있습니다.");
+                    errors.Add($"라인 {lineNo}: 필수 값(Email, ProductCode, SchoolName, 시작/만료일) 중 일부가 비어 있습니다.");
                     skipped++;
                     continue;
                 }
@@ -1409,7 +1409,7 @@ public class AccountListForm : Form
 
                 if (!customerDict.TryGetValue(customerNm, out var customer))
                 {
-                    errors.Add($"라인 {lineNo}: 알 수 없는 CustomerName [{customerNm}].");
+                    errors.Add($"라인 {lineNo}: 알 수 없는 SchoolName [{customerNm}].");
                     skipped++;
                     continue;
                 }

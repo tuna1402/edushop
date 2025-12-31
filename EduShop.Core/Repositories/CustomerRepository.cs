@@ -26,10 +26,12 @@ public class CustomerRepository
         using var cmd  = conn.CreateCommand();
         cmd.CommandText = @"
 SELECT customer_id,
-       customer_name,
+       school_name,
        contact_name,
-       phone,
-       email,
+       phone1,
+       phone2,
+       email1,
+       email2,
        address,
        memo,
        is_deleted,
@@ -39,7 +41,7 @@ SELECT customer_id,
        updated_by
 FROM   Customer
 WHERE  is_deleted = 0
-ORDER BY customer_name ASC, customer_id ASC;
+ORDER BY school_name ASC, customer_id ASC;
 ";
 
         using var reader = cmd.ExecuteReader();
@@ -50,19 +52,21 @@ ORDER BY customer_name ASC, customer_id ASC;
             var c = new Customer
             {
                 CustomerId   = reader.GetInt64(0),
-                CustomerName = reader.GetString(1),
+                SchoolName   = reader.GetString(1),
                 ContactName  = reader.IsDBNull(2) ? null : reader.GetString(2),
-                Phone        = reader.IsDBNull(3) ? null : reader.GetString(3),
-                Email        = reader.IsDBNull(4) ? null : reader.GetString(4),
-                Address      = reader.IsDBNull(5) ? null : reader.GetString(5),
-                Memo         = reader.IsDBNull(6) ? null : reader.GetString(6),
-                IsDeleted    = reader.GetInt32(7) != 0,
-                CreatedAt    = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture),
-                CreatedBy    = reader.IsDBNull(9) ? null : reader.GetString(9),
-                UpdatedAt    = reader.IsDBNull(10)
+                Phone1       = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Phone2       = reader.IsDBNull(4) ? null : reader.GetString(4),
+                Email1       = reader.IsDBNull(5) ? null : reader.GetString(5),
+                Email2       = reader.IsDBNull(6) ? null : reader.GetString(6),
+                Address      = reader.IsDBNull(7) ? null : reader.GetString(7),
+                Memo         = reader.IsDBNull(8) ? null : reader.GetString(8),
+                IsDeleted    = reader.GetInt32(9) != 0,
+                CreatedAt    = DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture),
+                CreatedBy    = reader.IsDBNull(11) ? null : reader.GetString(11),
+                UpdatedAt    = reader.IsDBNull(12)
                                ? null
-                               : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture),
-                UpdatedBy    = reader.IsDBNull(11) ? null : reader.GetString(11)
+                               : DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
+                UpdatedBy    = reader.IsDBNull(13) ? null : reader.GetString(13)
             };
 
             list.Add(c);
@@ -77,10 +81,12 @@ ORDER BY customer_name ASC, customer_id ASC;
         using var cmd  = conn.CreateCommand();
         cmd.CommandText = @"
 SELECT customer_id,
-       customer_name,
+       school_name,
        contact_name,
-       phone,
-       email,
+       phone1,
+       phone2,
+       email1,
+       email2,
        address,
        memo,
        is_deleted,
@@ -99,19 +105,21 @@ WHERE  customer_id = $id;
         return new Customer
         {
             CustomerId   = reader.GetInt64(0),
-            CustomerName = reader.GetString(1),
+            SchoolName   = reader.GetString(1),
             ContactName  = reader.IsDBNull(2) ? null : reader.GetString(2),
-            Phone        = reader.IsDBNull(3) ? null : reader.GetString(3),
-            Email        = reader.IsDBNull(4) ? null : reader.GetString(4),
-            Address      = reader.IsDBNull(5) ? null : reader.GetString(5),
-            Memo         = reader.IsDBNull(6) ? null : reader.GetString(6),
-            IsDeleted    = reader.GetInt32(7) != 0,
-            CreatedAt    = DateTime.Parse(reader.GetString(8), CultureInfo.InvariantCulture),
-            CreatedBy    = reader.IsDBNull(9) ? null : reader.GetString(9),
-            UpdatedAt    = reader.IsDBNull(10)
+            Phone1       = reader.IsDBNull(3) ? null : reader.GetString(3),
+            Phone2       = reader.IsDBNull(4) ? null : reader.GetString(4),
+            Email1       = reader.IsDBNull(5) ? null : reader.GetString(5),
+            Email2       = reader.IsDBNull(6) ? null : reader.GetString(6),
+            Address      = reader.IsDBNull(7) ? null : reader.GetString(7),
+            Memo         = reader.IsDBNull(8) ? null : reader.GetString(8),
+            IsDeleted    = reader.GetInt32(9) != 0,
+            CreatedAt    = DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture),
+            CreatedBy    = reader.IsDBNull(11) ? null : reader.GetString(11),
+            UpdatedAt    = reader.IsDBNull(12)
                            ? null
-                           : DateTime.Parse(reader.GetString(10), CultureInfo.InvariantCulture),
-            UpdatedBy    = reader.IsDBNull(11) ? null : reader.GetString(11)
+                           : DateTime.Parse(reader.GetString(12), CultureInfo.InvariantCulture),
+            UpdatedBy    = reader.IsDBNull(13) ? null : reader.GetString(13)
         };
     }
 
@@ -121,10 +129,12 @@ WHERE  customer_id = $id;
         using var cmd  = conn.CreateCommand();
         cmd.CommandText = @"
 INSERT INTO Customer
-    (customer_name,
+    (school_name,
      contact_name,
-     phone,
-     email,
+     phone1,
+     phone2,
+     email1,
+     email2,
      address,
      memo,
      is_deleted,
@@ -133,8 +143,10 @@ INSERT INTO Customer
 VALUES
     ($name,
      $contact,
-     $phone,
-     $email,
+     $phone1,
+     $phone2,
+     $email1,
+     $email2,
      $address,
      $memo,
      0,
@@ -144,10 +156,12 @@ VALUES
 SELECT last_insert_rowid();
 ";
 
-        cmd.Parameters.AddWithValue("$name",    c.CustomerName);
+        cmd.Parameters.AddWithValue("$name",    c.SchoolName);
         cmd.Parameters.AddWithValue("$contact", (object?)c.ContactName ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$phone",   (object?)c.Phone       ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$email",   (object?)c.Email       ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$phone1",  (object?)c.Phone1      ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$phone2",  (object?)c.Phone2      ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$email1",  (object?)c.Email1      ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$email2",  (object?)c.Email2      ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$address", (object?)c.Address     ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$memo",    (object?)c.Memo        ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$user",    userName);
@@ -162,10 +176,12 @@ SELECT last_insert_rowid();
         using var cmd  = conn.CreateCommand();
         cmd.CommandText = @"
 UPDATE Customer
-SET customer_name = $name,
+SET school_name = $name,
     contact_name  = $contact,
-    phone         = $phone,
-    email         = $email,
+    phone1        = $phone1,
+    phone2        = $phone2,
+    email1        = $email1,
+    email2        = $email2,
     address       = $address,
     memo          = $memo,
     updated_at    = datetime('now'),
@@ -174,10 +190,12 @@ WHERE customer_id = $id;
 ";
 
         cmd.Parameters.AddWithValue("$id",      c.CustomerId);
-        cmd.Parameters.AddWithValue("$name",    c.CustomerName);
+        cmd.Parameters.AddWithValue("$name",    c.SchoolName);
         cmd.Parameters.AddWithValue("$contact", (object?)c.ContactName ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$phone",   (object?)c.Phone       ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$email",   (object?)c.Email       ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$phone1",  (object?)c.Phone1      ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$phone2",  (object?)c.Phone2      ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$email1",  (object?)c.Email1      ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$email2",  (object?)c.Email2      ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$address", (object?)c.Address     ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$memo",    (object?)c.Memo        ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$user",    userName);

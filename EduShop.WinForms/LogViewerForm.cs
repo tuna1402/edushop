@@ -407,7 +407,7 @@ public class LogViewerForm : Form
         var products  = _productService.GetAll();
 
         var accountMap  = accounts.ToDictionary(a => a.AccountId, a => a.Email);
-        var customerMap = customers.ToDictionary(c => c.CustomerId, c => c.CustomerName);
+        var customerMap = customers.ToDictionary(c => c.CustomerId, c => c.SchoolName);
         var productMap  = products.ToDictionary(p => p.ProductId, p => p.ProductName ?? p.ProductCode);
 
         if (!string.IsNullOrWhiteSpace(_txtUsageAccount.Text))

@@ -16,6 +16,10 @@ public static class DatabaseInitializer
                 product_code     TEXT    NOT NULL UNIQUE,
                 product_name     TEXT    NOT NULL,
                 plan_name        TEXT    NULL,
+                duration_months  INTEGER NOT NULL DEFAULT 1,
+                purchase_price_usd REAL  NULL,
+                purchase_price_krw INTEGER NULL,
+                sale_price_krw   INTEGER NOT NULL DEFAULT 0,
                 monthly_fee_usd  REAL    NULL,
                 monthly_fee_krw  INTEGER NOT NULL,
                 wholesale_price  INTEGER NOT NULL,
@@ -129,10 +133,12 @@ public static class DatabaseInitializer
         cmd.CommandText = @"
             CREATE TABLE IF NOT EXISTS Customer (
                 customer_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_name TEXT    NOT NULL,
+                school_name   TEXT    NOT NULL,
                 contact_name  TEXT    NULL,
-                phone         TEXT    NULL,
-                email         TEXT    NULL,
+                phone1        TEXT    NULL,
+                phone2        TEXT    NULL,
+                email1        TEXT    NULL,
+                email2        TEXT    NULL,
                 address       TEXT    NULL,
                 memo          TEXT    NULL,
                 is_deleted    INTEGER NOT NULL DEFAULT 0,
@@ -143,6 +149,22 @@ public static class DatabaseInitializer
             );
             ";
             cmd.ExecuteNonQuery();
+
+        EnsureProductColumn(conn, "duration_months", "INTEGER NOT NULL DEFAULT 1");
+        EnsureProductColumn(conn, "purchase_price_usd", "REAL NULL");
+        EnsureProductColumn(conn, "purchase_price_krw", "INTEGER NULL");
+        EnsureProductColumn(conn, "sale_price_krw", "INTEGER NOT NULL DEFAULT 0");
+
+        EnsureCustomerColumn(conn, "customer_name", "school_name");
+        EnsureCustomerColumn(conn, "phone", "phone1");
+        EnsureCustomerColumn(conn, "email", "email1");
+        EnsureTableColumn(conn, "Customer", "phone2", "TEXT NULL");
+        EnsureTableColumn(conn, "Customer", "email2", "TEXT NULL");
+        EnsureTableColumn(conn, "Customer", "address", "TEXT NULL");
+
+        using var statusUpdate = conn.CreateCommand();
+        statusUpdate.CommandText = "UPDATE Product SET status = 'INACTIVE' WHERE status = 'STOPPED';";
+        statusUpdate.ExecuteNonQuery();
     }
 
     private static void EnsureAccountColumn(SqliteConnection conn, string columnName, string columnDefinition)
@@ -160,6 +182,56 @@ public static class DatabaseInitializer
 
         using var alter = conn.CreateCommand();
         alter.CommandText = $"ALTER TABLE Account ADD COLUMN {columnName} {columnDefinition};";
+        alter.ExecuteNonQuery();
+    }
+
+    private static bool ColumnExists(SqliteConnection conn, string tableName, string columnName)
+    {
+        using var check = conn.CreateCommand();
+        check.CommandText = $"PRAGMA table_info({tableName});";
+        using var reader = check.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void EnsureTableColumn(SqliteConnection conn, string tableName, string columnName, string columnDefinition)
+    {
+        if (ColumnExists(conn, tableName, columnName))
+        {
+            return;
+        }
+
+        using var alter = conn.CreateCommand();
+        alter.CommandText = $"ALTER TABLE {tableName} ADD COLUMN {columnName} {columnDefinition};";
+        alter.ExecuteNonQuery();
+    }
+
+    private static void EnsureProductColumn(SqliteConnection conn, string columnName, string columnDefinition)
+    {
+        EnsureTableColumn(conn, "Product", columnName, columnDefinition);
+    }
+
+    private static void EnsureCustomerColumn(SqliteConnection conn, string oldColumnName, string newColumnName)
+    {
+        if (ColumnExists(conn, "Customer", newColumnName))
+        {
+            return;
+        }
+
+        if (!ColumnExists(conn, "Customer", oldColumnName))
+        {
+            return;
+        }
+
+        using var alter = conn.CreateCommand();
+        alter.CommandText = $"ALTER TABLE Customer RENAME COLUMN {oldColumnName} TO {newColumnName};";
         alter.ExecuteNonQuery();
     }
 }

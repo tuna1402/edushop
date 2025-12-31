@@ -376,7 +376,7 @@ public class AccountEditForm : Form
     private void LoadCustomers()
     {
         _customers = _customerService.GetAll()
-            .OrderBy(c => c.CustomerName)
+            .OrderBy(c => c.SchoolName)
             .ToList();
 
         _cboCustomer.Items.Clear();
@@ -384,7 +384,7 @@ public class AccountEditForm : Form
 
         foreach (var c in _customers)
         {
-            _cboCustomer.Items.Add(c.CustomerName);
+            _cboCustomer.Items.Add(c.SchoolName);
         }
 
         _cboCustomer.SelectedIndex = 0;

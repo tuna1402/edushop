@@ -27,9 +27,9 @@ public class ProductRepository
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             SELECT product_id, product_code, product_name,
-                   plan_name, monthly_fee_usd, monthly_fee_krw,
-                   wholesale_price, retail_price, purchase_price,
-                   yearly_available, min_month, max_month, status, remark
+                   plan_name, duration_months, purchase_price_usd,
+                   purchase_price_krw, sale_price_krw,
+                   status, remark
             FROM Product
             ORDER BY created_at DESC;
         ";
@@ -43,16 +43,12 @@ public class ProductRepository
                 ProductCode     = reader.GetString(1),
                 ProductName     = reader.GetString(2),
                 PlanName        = reader.IsDBNull(3) ? null : reader.GetString(3),
-                MonthlyFeeUsd   = reader.IsDBNull(4) ? null : reader.GetDouble(4),
-                MonthlyFeeKrw   = reader.GetInt64(5),
-                WholesalePrice  = reader.GetInt64(6),
-                RetailPrice     = reader.GetInt64(7),
-                PurchasePrice   = reader.GetInt64(8),
-                YearlyAvailable = reader.GetString(9) == "Y",
-                MinMonth        = reader.GetInt32(10),
-                MaxMonth        = reader.GetInt32(11),
-                Status          = reader.GetString(12),
-                Remark          = reader.IsDBNull(13) ? null : reader.GetString(13)
+                DurationMonths  = reader.IsDBNull(4) ? 1 : reader.GetInt32(4),
+                PurchasePriceUsd = reader.IsDBNull(5) ? null : reader.GetDouble(5),
+                PurchasePriceKrw = reader.IsDBNull(6) ? null : reader.GetInt64(6),
+                SalePriceKrw    = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
+                Status          = NormalizeStatus(reader.GetString(8)),
+                Remark          = reader.IsDBNull(9) ? null : reader.GetString(9)
             };
             list.Add(p);
         }
@@ -67,15 +63,17 @@ public class ProductRepository
         cmd.CommandText = @"
             INSERT INTO Product (
                 product_code, product_name, plan_name,
-                monthly_fee_usd, monthly_fee_krw,
-                wholesale_price, retail_price, purchase_price,
+                duration_months, purchase_price_usd, purchase_price_krw,
+                sale_price_krw,
+                monthly_fee_usd, monthly_fee_krw, wholesale_price, retail_price, purchase_price,
                 yearly_available, min_month, max_month,
                 status, remark, created_by, updated_by
             )
             VALUES (
                 $code, $name, $plan,
-                $usd, $krw,
-                $wholesale, $retail, $purchase,
+                $duration, $purchaseUsd, $purchaseKrw,
+                $saleKrw,
+                $usd, $krw, $wholesale, $retail, $purchase,
                 $yearly, $minMonth, $maxMonth,
                 $status, $remark, $user, $user
             );
@@ -85,14 +83,18 @@ public class ProductRepository
         cmd.Parameters.AddWithValue("$code", p.ProductCode);
         cmd.Parameters.AddWithValue("$name", p.ProductName);
         cmd.Parameters.AddWithValue("$plan", (object?)p.PlanName ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$usd", (object?)p.MonthlyFeeUsd ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$krw", p.MonthlyFeeKrw);
-        cmd.Parameters.AddWithValue("$wholesale", p.WholesalePrice);
-        cmd.Parameters.AddWithValue("$retail", p.RetailPrice);
-        cmd.Parameters.AddWithValue("$purchase", p.PurchasePrice);
-        cmd.Parameters.AddWithValue("$yearly", p.YearlyAvailable ? "Y" : "N");
-        cmd.Parameters.AddWithValue("$minMonth", p.MinMonth);
-        cmd.Parameters.AddWithValue("$maxMonth", p.MaxMonth);
+        cmd.Parameters.AddWithValue("$duration", p.DurationMonths);
+        cmd.Parameters.AddWithValue("$purchaseUsd", (object?)p.PurchasePriceUsd ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$purchaseKrw", (object?)p.PurchasePriceKrw ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$saleKrw", p.SalePriceKrw);
+        cmd.Parameters.AddWithValue("$usd", DBNull.Value);
+        cmd.Parameters.AddWithValue("$krw", 0);
+        cmd.Parameters.AddWithValue("$wholesale", 0);
+        cmd.Parameters.AddWithValue("$retail", 0);
+        cmd.Parameters.AddWithValue("$purchase", 0);
+        cmd.Parameters.AddWithValue("$yearly", "N");
+        cmd.Parameters.AddWithValue("$minMonth", 0);
+        cmd.Parameters.AddWithValue("$maxMonth", 0);
         cmd.Parameters.AddWithValue("$status", p.Status);
         cmd.Parameters.AddWithValue("$remark", (object?)p.Remark ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$user", userName);
@@ -124,9 +126,9 @@ public class ProductRepository
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             SELECT product_id, product_code, product_name,
-                   plan_name, monthly_fee_usd, monthly_fee_krw,
-                   wholesale_price, retail_price, purchase_price,
-                   yearly_available, min_month, max_month, status, remark
+                   plan_name, duration_months, purchase_price_usd,
+                   purchase_price_krw, sale_price_krw,
+                   status, remark
             FROM Product
             WHERE product_id = $id;
         ";
@@ -141,16 +143,12 @@ public class ProductRepository
             ProductCode     = reader.GetString(1),
             ProductName     = reader.GetString(2),
             PlanName        = reader.IsDBNull(3) ? null : reader.GetString(3),
-            MonthlyFeeUsd   = reader.IsDBNull(4) ? null : reader.GetDouble(4),
-            MonthlyFeeKrw   = reader.GetInt64(5),
-            WholesalePrice  = reader.GetInt64(6),
-            RetailPrice     = reader.GetInt64(7),
-            PurchasePrice   = reader.GetInt64(8),
-            YearlyAvailable = reader.GetString(9) == "Y",
-            MinMonth        = reader.GetInt32(10),
-            MaxMonth        = reader.GetInt32(11),
-            Status          = reader.GetString(12),
-            Remark          = reader.IsDBNull(13) ? null : reader.GetString(13)
+            DurationMonths  = reader.IsDBNull(4) ? 1 : reader.GetInt32(4),
+            PurchasePriceUsd = reader.IsDBNull(5) ? null : reader.GetDouble(5),
+            PurchasePriceKrw = reader.IsDBNull(6) ? null : reader.GetInt64(6),
+            SalePriceKrw    = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
+            Status          = NormalizeStatus(reader.GetString(8)),
+            Remark          = reader.IsDBNull(9) ? null : reader.GetString(9)
         };
     }
     public Product? GetByCode(string productCode)
@@ -159,9 +157,9 @@ public class ProductRepository
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             SELECT product_id, product_code, product_name,
-                plan_name, monthly_fee_usd, monthly_fee_krw,
-                wholesale_price, retail_price, purchase_price,
-                yearly_available, min_month, max_month, status, remark
+                plan_name, duration_months, purchase_price_usd,
+                purchase_price_krw, sale_price_krw,
+                status, remark
             FROM Product
             WHERE product_code = $code;
         ";
@@ -177,16 +175,12 @@ public class ProductRepository
             ProductCode     = reader.GetString(1),
             ProductName     = reader.GetString(2),
             PlanName        = reader.IsDBNull(3) ? null : reader.GetString(3),
-            MonthlyFeeUsd   = reader.IsDBNull(4) ? null : reader.GetDouble(4),
-            MonthlyFeeKrw   = reader.GetInt64(5),
-            WholesalePrice  = reader.GetInt64(6),
-            RetailPrice     = reader.GetInt64(7),
-            PurchasePrice   = reader.GetInt64(8),
-            YearlyAvailable = reader.GetString(9) == "Y",
-            MinMonth        = reader.GetInt32(10),
-            MaxMonth        = reader.GetInt32(11),
-            Status          = reader.GetString(12),
-            Remark          = reader.IsDBNull(13) ? null : reader.GetString(13)
+            DurationMonths  = reader.IsDBNull(4) ? 1 : reader.GetInt32(4),
+            PurchasePriceUsd = reader.IsDBNull(5) ? null : reader.GetDouble(5),
+            PurchasePriceKrw = reader.IsDBNull(6) ? null : reader.GetInt64(6),
+            SalePriceKrw    = reader.IsDBNull(7) ? 0 : reader.GetInt64(7),
+            Status          = NormalizeStatus(reader.GetString(8)),
+            Remark          = reader.IsDBNull(9) ? null : reader.GetString(9)
         };
     }
         public void Update(Product p, string userName)
@@ -200,6 +194,10 @@ public class ProductRepository
                 product_code     = $code,
                 product_name     = $name,
                 plan_name        = $plan,
+                duration_months  = $duration,
+                purchase_price_usd = $purchaseUsd,
+                purchase_price_krw = $purchaseKrw,
+                sale_price_krw   = $saleKrw,
                 monthly_fee_usd  = $usd,
                 monthly_fee_krw  = $krw,
                 wholesale_price  = $wholesale,
@@ -218,19 +216,28 @@ public class ProductRepository
         cmd.Parameters.AddWithValue("$code",      p.ProductCode);
         cmd.Parameters.AddWithValue("$name",      p.ProductName);
         cmd.Parameters.AddWithValue("$plan",      (object?)p.PlanName ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$usd",       (object?)p.MonthlyFeeUsd ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$krw",       p.MonthlyFeeKrw);
-        cmd.Parameters.AddWithValue("$wholesale", p.WholesalePrice);
-        cmd.Parameters.AddWithValue("$retail",    p.RetailPrice);
-        cmd.Parameters.AddWithValue("$purchase",  p.PurchasePrice);
-        cmd.Parameters.AddWithValue("$yearly",    p.YearlyAvailable ? "Y" : "N");
-        cmd.Parameters.AddWithValue("$minMonth",  p.MinMonth);
-        cmd.Parameters.AddWithValue("$maxMonth",  p.MaxMonth);
+        cmd.Parameters.AddWithValue("$duration",  p.DurationMonths);
+        cmd.Parameters.AddWithValue("$purchaseUsd", (object?)p.PurchasePriceUsd ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$purchaseKrw", (object?)p.PurchasePriceKrw ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$saleKrw",   p.SalePriceKrw);
+        cmd.Parameters.AddWithValue("$usd",       DBNull.Value);
+        cmd.Parameters.AddWithValue("$krw",       0);
+        cmd.Parameters.AddWithValue("$wholesale", 0);
+        cmd.Parameters.AddWithValue("$retail",    0);
+        cmd.Parameters.AddWithValue("$purchase",  0);
+        cmd.Parameters.AddWithValue("$yearly",    "N");
+        cmd.Parameters.AddWithValue("$minMonth",  0);
+        cmd.Parameters.AddWithValue("$maxMonth",  0);
         cmd.Parameters.AddWithValue("$status",    p.Status);
         cmd.Parameters.AddWithValue("$remark",    (object?)p.Remark ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$user",      userName);
         cmd.Parameters.AddWithValue("$id",        p.ProductId);
 
         cmd.ExecuteNonQuery();
+    }
+
+    private static string NormalizeStatus(string status)
+    {
+        return status == "STOPPED" ? "INACTIVE" : status;
     }
 }

@@ -274,9 +274,9 @@ public class QuoteForm : Form
                 ProductId      = p.ProductId,
                 ProductCode    = p.ProductCode,
                 ProductName    = p.ProductName,
-                UnitPrice      = p.RetailPrice,
+                UnitPrice      = p.SalePriceKrw,
                 Quantity       = 1,
-                PurchasePrice  = p.PurchasePrice
+                PurchasePrice  = p.PurchasePriceKrw ?? 0
             };
 
             _items.Add(item);

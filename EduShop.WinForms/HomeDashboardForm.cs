@@ -271,7 +271,7 @@ public class HomeDashboardForm : Form
             {
                 Email = a.Email,
                 CustomerName = a.CustomerId.HasValue && customerMap.TryGetValue(a.CustomerId.Value, out var customer)
-                    ? customer.CustomerName
+                    ? customer.SchoolName
                     : "-",
                 ProductName = productMap.TryGetValue(a.ProductId, out var product)
                     ? product.ProductName
