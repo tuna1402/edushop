@@ -4,7 +4,8 @@ using EduShop.Core.Repositories;
 using EduShop.Core.Services;
 using EduShop.Core.Infrastructure;
 
-const string connectionString = "Data Source=edushop.db";
+var dbPath = AppPaths.GetDefaultDbPath();
+var connectionString = $"Data Source={dbPath}";
 
 DatabaseInitializer.EnsureCreated(connectionString);
 
