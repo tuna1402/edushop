@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 using EduShop.Core.Common;
@@ -20,12 +21,34 @@ internal static class Program
             var appSettings = SettingsStorage.Load();
             QuestPDF.Settings.License = LicenseType.Community;
 
-            // 1) Windows 로컬 경로: %LOCALAPPDATA%\EduShop\edushop_winforms.db
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var dbDir  = Path.Combine(localAppData, "EduShop");
-            Directory.CreateDirectory(dbDir);
+            // 1) Windows 로컬 경로: %LOCALAPPDATA%\EduShop\edushop.db
+            var dbPath = AppPaths.GetDefaultDbPath();
 
-            var dbPath = Path.Combine(dbDir, "edushop_winforms.db");
+            if (!File.Exists(dbPath))
+            {
+                string? legacyPath = null;
+                var baseLegacyPath = Path.Combine(AppContext.BaseDirectory, "edushop.db");
+                if (File.Exists(baseLegacyPath))
+                {
+                    legacyPath = baseLegacyPath;
+                }
+                else
+                {
+                    var currentLegacyPath = Path.Combine(Directory.GetCurrentDirectory(), "edushop.db");
+                    if (File.Exists(currentLegacyPath))
+                    {
+                        legacyPath = currentLegacyPath;
+                    }
+                }
+
+                if (legacyPath is not null)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+                    File.Copy(legacyPath, dbPath);
+                }
+            }
+
+            Debug.WriteLine($"EduShop DB Path: {dbPath}");
             var connectionString = $"Data Source={dbPath}";
 
             // 2) DB 없으면 테이블 생성
